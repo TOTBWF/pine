@@ -19,8 +19,8 @@ type Abstraction = (Variable, Expr, Expr)
 -- Types are also expressions, because dependent types
 data Expr
     = Var Variable 
-    | Universe Int
+    | Universe Int -- Universes of types, to avoid the type theory version of Russels paradox
     | Pi Abstraction -- Dependent Product Type
-    | Lambda Abstraction
-    | App Expr Expr
+    | Lambda Abstraction -- Lambda Function
+    | App Expr Expr -- Application
 
