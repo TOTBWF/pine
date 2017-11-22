@@ -1,0 +1,26 @@
+name:                sigma-lang
+version:             0.1.0.0
+-- synopsis:
+-- description:
+homepage:            https://github.com/TOTBWF/sigma-lang#readme
+license:             BSD3
+license-file:        LICENSE
+author:              Reed Mullanix
+maintainer:          reedmullanix@gmail.com
+copyright:           2017 Reed Mullanix
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+executable sigma-lang
+  hs-source-dirs:      src
+  main-is:             Main.hs
+  build-depends:       base 
+                     , parsec
+                     , mtl
+                     , containers
+  ghc-options:         -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+  other-modules:       Interpreter
+                       Syntax
+
