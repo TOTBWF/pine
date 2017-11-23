@@ -9,7 +9,7 @@ import Syntax
 type Context = Map.Map Variable (Expr, Maybe Expr)
 type Subst = Map.Map Variable Expr
 
-data Unique = Unique { count :: Int }
+data Unique = Unique { count :: Integer }
 
 data TypeError
     = UnknownIdentifier Variable
@@ -99,7 +99,7 @@ inferType e ctx = case e of
 
        
 -- Infers the universe level of a type
-inferUniverse :: Expr -> Context -> Infer Int
+inferUniverse :: Expr -> Context -> Infer Integer
 inferUniverse t ctx = do
     u <- inferType t ctx
     u' <- normalize u ctx

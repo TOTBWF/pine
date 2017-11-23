@@ -12,15 +12,18 @@ build-type:          Simple
 extra-source-files:  README.md
 cabal-version:       >=1.10
 
-executable sigma-lang
+executable pine
   hs-source-dirs:      src
   main-is:             Main.hs
   build-depends:       base 
                      , parsec
+                     , text
                      , mtl
+                     , haskeline
                      , containers
-  ghc-options:         -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
   other-modules:       Interpreter
                        Syntax
+                       Lexer
+                       Parser
 
