@@ -51,33 +51,37 @@ forall = do
     e <- expr
     return $ Pi (Sym x, t, e)
 
-arrow :: Parser Expr
+arrow :: Parser (Expr -> Expr -> Expr)
 arrow = do
-    t1 <- expr
     reservedOp "->"
-    t2 <- expr
-    return $ Pi (Dummy, t1, t2)
+    return (\t1 t2 -> Pi (Dummy, t1, t2))
 
-simple :: Parser Expr
-simple =
-        variable
+aexp :: Parser Expr
+aexp = 
+        parens expr
+    <|> lambda
     <|> universe
-    <|> parens expr
+    <|> forall
+    <|> variable
 
-app :: Parser Expr
-app = simple >>= \x ->
-                (many1 simple >>= \xs -> return $ foldl App x xs)
-                <|> return x
 
 term :: Parser Expr
-term = 
-        app
-    <|> forall
-    <|> arrow
-    <|> lambda
+term = aexp >>= \x ->
+                (many1 aexp >>= \xs -> return $ foldl App x xs)
+                <|> return x
+
+infixOp :: String -> (a -> a -> a) -> Ex.Assoc -> Op a
+infixOp x f = Ex.Infix (reservedOp x >> return f)
+
+table :: Operators Expr
+table = [
+        [
+            infixOp "->" (\t1 t2 -> Pi (Dummy, t1, t2)) Ex.AssocLeft
+        ]
+    ]
 
 expr :: Parser Expr
-expr = Ex.buildExpressionParser [] term
+expr = Ex.buildExpressionParser table term
 
 quit :: Parser Directive
 quit = do
