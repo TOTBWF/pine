@@ -40,4 +40,3 @@ ppBinding (x, (Value t v)) = ppVariable x ++ " = " ++ ppExpr v ++ "\n    : " ++ 
 ppEnv :: Context -> [String]
 ppEnv ctx = fmap ppBinding $ Map.toList ctx
 
-
