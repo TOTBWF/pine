@@ -51,11 +51,6 @@ forall = do
     e <- expr
     return $ Pi (Sym x, t, e)
 
-arrow :: Parser (Expr -> Expr -> Expr)
-arrow = do
-    reservedOp "->"
-    return (\t1 t2 -> Pi (Dummy, t1, t2))
-
 aexp :: Parser Expr
 aexp = 
         parens expr

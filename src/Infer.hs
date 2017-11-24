@@ -26,7 +26,7 @@ data Binding
 
 type Context = Map.Map Variable Binding
 
-runInfer :: Infer Expr -> Either TypeError Expr
+runInfer :: Infer a -> Either TypeError a
 runInfer m = case evalState (runExceptT m) initUnique of
     Left err  -> Left err
     Right res -> Right res
@@ -50,6 +50,10 @@ fresh x = case x of
 -- Creates a singleton substitution
 singletonSubst :: Variable -> Expr -> Subst
 singletonSubst = Map.singleton
+
+-- Creates a singleton substitution
+emptySubst :: Subst
+emptySubst = Map.empty
 
 -- Performs a substitution in 'e'
 subst :: Subst -> Expr -> Infer Expr

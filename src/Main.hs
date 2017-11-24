@@ -3,6 +3,7 @@ module Main where
 import Parser
 import Syntax
 import Infer
+import Pretty
 
 import Control.Monad.Trans
 import qualified Data.Text.Lazy as L
@@ -29,8 +30,8 @@ exec line = do
     case res of
         Left err -> liftIO $ print err
         Right tp -> case tp of
-            Parameter x e -> do
-                t <- hoistErr $ infer e ctx
+            Parameter x t -> do
+                _ <- hoistErr $ runInfer $ inferUniverse t ctx
                 let ctx' = extendType x t ctx
                 put ctx'
                 return ()
@@ -39,7 +40,6 @@ exec line = do
                 let ctx' = extendValue x t e ctx
                 put ctx'
                 return ()
-            -- _ -> liftIO $ print "TODO"
 
 -- Commands
 
@@ -60,7 +60,7 @@ help _ = liftIO $ do
 context :: a -> Repl ()
 context _ = do
     ctx <- get
-    liftIO $ print ctx
+    liftIO $ mapM_ putStrLn $ ppEnv ctx
 
 cmd :: [(String, [String] -> Repl ())]
 cmd = [
