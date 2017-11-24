@@ -24,14 +24,3 @@ data Expr
     | Lambda Abstraction -- Lambda Function
     | App Expr Expr -- Application
     deriving Show
-
--- Directives are commands that can be given at the top-level of a program
-data Directive
-    = Quit
-    | Help
-    | Context
-    | Parameter Variable Expr
-    | Definition Variable Expr
-    | Check Expr
-    | Eval Expr
-    deriving Show

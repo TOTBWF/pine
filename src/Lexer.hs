@@ -18,15 +18,7 @@ reservedNames :: [String]
 reservedNames = [
         "fun",
         "forall",
-        "Type",
-        -- Directives
-        "Quit",
-        "Help",
-        "Context",
-        "Parameter",
-        "Definition",
-        "Check",
-        "Eval"
+        "Type"
     ]
 
 reservedOpNames :: [String]

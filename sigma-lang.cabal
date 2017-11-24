@@ -19,11 +19,11 @@ executable pine
                      , parsec
                      , text
                      , mtl
-                     , haskeline
+                     , repline
                      , containers
   default-language:    Haskell2010
-  other-modules:       Interpreter
-                       Syntax
+  other-modules:       Syntax
                        Lexer
                        Parser
+                       Infer
 

@@ -6,7 +6,6 @@ import Data.Map as Map
 
 import Syntax
 
-type Context = Map.Map Variable (Expr, Maybe Expr)
 type Subst = Map.Map Variable Expr
 
 data Unique = Unique { count :: Integer }
@@ -16,8 +15,24 @@ data TypeError
     | TypeExpected
     | FunctionExpected
     | EqualityError Expr Expr
+    deriving Show
 
 type Infer a = ExceptT TypeError (State Unique) a
+
+data Binding 
+    = Type Expr
+    | Value Expr Expr
+    deriving Show
+
+type Context = Map.Map Variable Binding
+
+runInfer :: Infer Expr -> Either TypeError Expr
+runInfer m = case evalState (runExceptT m) initUnique of
+    Left err  -> Left err
+    Right res -> Right res
+
+initUnique :: Unique
+initUnique = Unique { count = 0 }
 
 -- Takes a variable and generates a fresh one
 fresh :: Variable -> Infer Variable
@@ -37,42 +52,62 @@ singletonSubst :: Variable -> Expr -> Subst
 singletonSubst = Map.singleton
 
 -- Performs a substitution in 'e'
-subst :: Subst -> Expr -> Expr
+subst :: Subst -> Expr -> Infer Expr
 subst s e = case e of
-    Var x -> 
+    Var x -> do
         case Map.lookup x s of
-            Just e -> e
-            Nothing -> Var x
-    Universe k -> Universe k
+            Just e -> return e
+            Nothing -> return $ Var x
+    Universe k -> return $ Universe k
+    Pi a -> do
+        a' <- substAbstraction s a
+        return $ Pi a'
+    Lambda a -> do
+        a' <- substAbstraction s a
+        return $ Lambda a'
+    App e1 e2 -> do
+        e1' <- subst s e1
+        e2' <- subst s e2
+        return $ App e1' e2'
 
 -- Performs a substitution in an abstraction
 substAbstraction :: Subst -> Abstraction -> Infer Abstraction
 substAbstraction s (x, t, e) = do
     x' <- fresh x 
-    let t' = subst s t
-    let e' = subst (Map.insert x (Var x') s) e
+    t' <- subst s t
+    e' <- subst (Map.insert x (Var x') s) e
     return (x', t', e')
+
+
+-- Returns an empty context
+emptyCtx :: Context
+emptyCtx = Map.empty
 
 -- Returns the type of 'x' in the Context 'ctx'
 lookupType :: Variable -> Context -> Infer Expr
 lookupType x ctx = case Map.lookup x ctx of
-    Just(t) -> return $ fst t
+    Just(Type(t)) -> return t
+    Just(Value t _) -> return t
     Nothing -> throwError $ UnknownIdentifier x
 
 -- Returns the value of 'x' in the Context 'ctx' if it is a value
 lookupValue :: Variable -> Context -> Infer (Maybe Expr)
 lookupValue x ctx = case Map.lookup x ctx of
-    Just v -> return $ snd v
+    Just(Type(_)) -> return Nothing
+    Just(Value _ v) -> return $ Just v
     Nothing -> throwError $ UnknownIdentifier x
     
 
 -- Extends 'ctx' with a a variable bound to a type
 extendType :: Variable -> Expr -> Context -> Context
-extendType x t ctx = Map.insert x (t, Nothing) ctx
+extendType x t ctx = Map.insert x (Type t) ctx
 
 -- Extends 'ctx' with a a variable bound to a value e of type t
-extendValue :: Variable -> Expr -> Maybe Expr -> Context -> Context
-extendValue x t e ctx = Map.insert x (t, e) ctx
+extendValue :: Variable -> Expr -> Expr -> Context -> Context
+extendValue x t e ctx = Map.insert x (Value t e) ctx
+
+infer :: Expr -> Context -> Either TypeError Expr
+infer e ctx = runInfer $ inferType e ctx
 
 inferType :: Expr -> Context -> Infer Expr
 inferType e ctx = case e of
@@ -94,9 +129,8 @@ inferType e ctx = case e of
         te <- inferType e2 ctx
         eq <- equal s te ctx
         if eq
-            then return $ subst (singletonSubst x e2) t
+            then subst (singletonSubst x e2) t
             else throwError $ EqualityError e1 e2
-
        
 -- Infers the universe level of a type
 inferUniverse :: Expr -> Context -> Infer Integer
@@ -135,7 +169,7 @@ normalize e ctx = case e of
         e2' <- normalize e2 ctx
         case e1' of
             Lambda (x, _, b) -> do
-                let b' = subst (singleton x e2') b
+                b' <- subst (singleton x e2') b
                 normalize b' ctx
             e1' -> return $ App e1' e2'
 
@@ -150,12 +184,19 @@ equal :: Expr -> Expr -> Context -> Infer Bool
 equal e1 e2 ctx = do 
     e1' <- normalize e1 ctx
     e2' <- normalize e1 ctx
-    return $ equal' e1' e2'
+    equal' e1' e2'
     where
-        equal' (Var x1) (Var x2) = x1 == x2
-        equal' (Universe k1) (Universe k2) = k1 == k2
+        equal' (Var x1) (Var x2) = return $ x1 == x2
+        equal' (Universe k1) (Universe k2) = return $ k1 == k2
         equal' (Pi a1) (Pi a2) = equalAbstraction a1 a2
         equal' (Lambda a1) (Lambda a2) = equalAbstraction a1 a2
-        equal' (App e11 e12) (App e21 e22) = equal' e11 e21 && equal' e12 e22
-        equal' _ _ = False
-        equalAbstraction (x1, t1, e1) (x2, t2, e2) = equal' t1 t2 && equal' e1 (subst (singletonSubst x2 (Var x1)) e2)
+        equal' (App e11 e12) (App e21 e22) = do
+            eq1 <- equal' e11 e21 
+            eq2 <- equal' e12 e22
+            return $ eq1 && eq2
+        equal' _ _ = return False
+        equalAbstraction (x1, t1, e1) (x2, t2, e2) = do
+            eq1 <- equal' t1 t2 
+            e2' <- subst (singletonSubst x2 (Var x1)) e2
+            eq2 <- equal' e1 e2'
+            return $ eq1 && eq2

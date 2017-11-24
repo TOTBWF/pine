@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Parser where
+module Parser (parseExpr, parseTop, Top(Parameter, Definition)) where
 
 import Prelude hiding (pi)
 
@@ -83,60 +83,32 @@ table = [
 expr :: Parser Expr
 expr = Ex.buildExpressionParser table term
 
-quit :: Parser Directive
-quit = do
-    reserved "Quit"
-    return $ Quit
+data Top 
+    = Parameter Variable Expr
+    | Definition Variable Expr 
 
-help :: Parser Directive
-help = do
-    reserved "Help"
-    return $ Help
-
-context :: Parser Directive
-context = do
-    reserved "Context"
-    return $ Context
-
-parameter :: Parser Directive
+parameter :: Parser Top
 parameter = do
-    reserved "Parameter"
     x <- identifier
     reservedOp ":"
-    e <- expr
-    return $ Parameter (Sym x) e
+    t <- expr
+    return $ Parameter (Sym x) t
 
-definition :: Parser Directive
+definition :: Parser Top
 definition = do
-    reserved "Definition"
     x <- identifier
     reservedOp ":="
-    e <- expr
-    return $ Definition (Sym x) e
+    t <- expr
+    return $ Definition (Sym x) t
 
-
-check :: Parser Directive
-check = do
-    reserved "Check"
-    e <- expr
-    return $ Check e
-
-eval :: Parser Directive
-eval = do
-    reserved "Eval"
-    e <- expr
-    return $ Eval e
-
-directive :: Parser Directive
-directive =
-        quit
-    <|> help
-    <|> context
-    <|> parameter
+top :: Parser Top
+top =
+        try parameter
     <|> definition
-    <|> check
-    <|> eval
 
-parseDirective :: L.Text -> Either ParseError Directive
-parseDirective s = parse directive "<stdint>" s
+parseExpr :: L.Text -> Either ParseError Expr
+parseExpr s = parse expr "<stdint>" s
+
+parseTop :: L.Text -> Either ParseError Top
+parseTop s = parse top "<stdint>" s
 
