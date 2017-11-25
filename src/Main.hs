@@ -130,7 +130,10 @@ cmd = [
 
 -- Tab Completion
 defaultMatcher :: MonadIO m => [(String, CompletionFunc m)]
-defaultMatcher = []
+defaultMatcher = [
+    (":load"  , fileCompleter),
+    (":dump"  , fileCompleter)
+  ]
 
 comp :: (Monad m, MonadState ReplState m) => WordCompleter m
 comp n = do

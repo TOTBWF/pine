@@ -26,7 +26,7 @@ instance Pretty Variable where
 instance Pretty Expr where
     ppr p (Var x) = ppr p x
     ppr _ (Universe k) = text "Type" <+> integer k
-    ppr p (Pi (Dummy, t1, t2)) = parensIf (p > 0) $ ppr (p + 1) t1 <+> text "->" <+> ppr p t2 
+    ppr p (Pi (Dummy, t1, t2)) = parensIf (p > 0) $ ppr (p + 1) t1 <+> text "->" <+> ppr (p + 1) t2 
     ppr p (Pi (x, t1, t2)) = text "forall" <+> ppr p x <+> colon <+> ppr p t1 <> comma <+> ppr p t2
     ppr p (Lambda a) = text "fun" <+> compressLambdas p (Lambda a)
     ppr p (App e1 e2) = parensIf (p > 0) $ ppr p e1 <+> ppr (p + 1) e2

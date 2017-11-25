@@ -1,7 +1,7 @@
 N : Type 0
 s : N -> N
 z : N
-numeral := forall A : Type 0, (A -> A) -> A -> A
+numeral := forall A : Type 0, (A -> A) -> (A -> A)
 zero := fun (A : Type 0) (_ : A -> A) (x : A) => x
 one := fun (A : Type 0) (f : A -> A) (x : A) => f x
 two := fun (A : Type 0) (f : A -> A) (x : A) => f (f x)
