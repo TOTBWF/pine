@@ -36,12 +36,19 @@ resolver: lts-9.12
 # non-dependency (i.e. a user package), and its test suites and benchmarks
 # will not be run. This is useful for tweaking upstream packages.
 packages:
-- .
+- location: .
+- location:
+    git: git@github.com:TOTBWF/repline.git
+    commit: 4862793ca44e3e606d6672a6bfd3794da3e97d5e
+  extra-dep: true
 # Dependency packages to be pulled from upstream that are not in the resolver
 # (e.g., acme-missiles-0.3)
-extra-deps:
-  - repline-0.1.7.0
+# extra-deps:
+#   - git: https://github.com/TOTBWF/repline/tree/options-fix
+    # commit: 4862793ca44e3e606d6672a6bfd3794da3e97d5e
+  # - repline-0.1.7.0
 
+extra-deps: []
 
 # Override default flag values for local packages and extra-deps
 flags: {}
