@@ -22,7 +22,15 @@ import System.Exit
 import System.Environment
 import System.Console.Repline
 
-type Repl a = HaskelineT (StateT Context IO) a
+data ReplState = ReplState { 
+        rctx :: Context,
+        rdefs :: [(Variable, Binding)]
+    }
+
+type Repl a = HaskelineT (StateT ReplState IO) a
+
+initState :: ReplState
+initState = ReplState emptyCtx []
 
 hoistErr :: Show e => Either e a -> Repl a
 hoistErr (Right val) = return val
@@ -38,13 +46,20 @@ exec line = do
         Left err -> liftIO $ print err
         Right tp -> case tp of
             Parameter x t -> do
-                _ <- hoistErr $ runInfer $ inferUniverse t ctx
-                let ctx' = extendType x t ctx
+                _ <- hoistErr $ runInfer $ inferUniverse t (rctx ctx)
+                let rctx' = extendType x t (rctx ctx)
+                let ctx' = ctx { rctx = rctx'
+                               , rdefs = (x, Type t):(rdefs ctx)
+                               }
                 put ctx'
                 return ()
             Definition x e -> do
-                t <- hoistErr $ infer e ctx
-                let ctx' = extendValue x t e ctx
+                t <- hoistErr $ infer e (rctx ctx)
+                let rctx' = extendValue x t e (rctx ctx)
+                let ctx' = ctx {
+                        rctx = rctx',
+                        rdefs = (x, Value t e):(rdefs ctx)
+                    }
                 put ctx'
                 return ()
 
@@ -66,19 +81,19 @@ help _ = liftIO $ do
 
 context :: a -> Repl ()
 context _ = do
-    ctx <- get
-    liftIO $ mapM_ putStrLn $ ppEnv ctx
+    ctx <- gets rdefs
+    liftIO $ mapM_ putStrLn $ ppEnv $ reverse ctx
 
 typeof :: [String] -> Repl ()
 typeof args = do
-    ctx <- get
+    ctx <- gets rctx
     expr <- hoistErr $ parseExpr $ L.pack $ unwords args
     t <- hoistErr $ infer expr ctx
     liftIO $ putStrLn $ ppExpr t
 
 eval :: [String] -> Repl ()
 eval args = do
-    ctx <- get
+    ctx <- gets rctx
     expr <- hoistErr $ parseExpr $ L.pack $ unwords args
     t <- hoistErr $ infer expr ctx
     e <- hoistErr $ runInfer $ normalize expr ctx
@@ -97,18 +112,18 @@ cmd = [
 defaultMatcher :: MonadIO m => [(String, CompletionFunc m)]
 defaultMatcher = []
 
-comp :: (Monad m, MonadState Context m) => WordCompleter m
+comp :: (Monad m, MonadState ReplState m) => WordCompleter m
 comp n = do
     let cmds = [":quit", ":help", ":context", ":type", ":eval", "Type"]
-    ctx <- get
-    let defs = fmap ppVariable $ Map.keys ctx
+    ctx <- gets rdefs
+    let defs = fmap (ppVariable . fst) ctx 
     return $ filter (isPrefixOf n) (cmds ++ defs)
 
-completer :: CompleterStyle (StateT Context IO)
+completer :: CompleterStyle (StateT ReplState IO)
 completer = Prefix (wordCompleter comp) defaultMatcher
 
 main :: IO ()
 main = 
-    flip evalStateT emptyCtx
+    flip evalStateT initState
     $ evalRepl "λπ> " exec cmd completer (return ())
 

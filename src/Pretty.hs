@@ -37,6 +37,6 @@ ppBinding :: (Variable, Binding) -> String
 ppBinding (x, (Type t)) = ppVariable x ++ " : " ++ ppExpr t
 ppBinding (x, (Value t v)) = ppVariable x ++ " = " ++ ppExpr v ++ "\n    : " ++ ppExpr t
 
-ppEnv :: Context -> [String]
-ppEnv ctx = fmap ppBinding $ Map.toList ctx
+ppEnv :: [(Variable, Binding)] -> [String]
+ppEnv ctx = fmap ppBinding ctx
 
