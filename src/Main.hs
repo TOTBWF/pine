@@ -110,5 +110,5 @@ completer = Prefix (wordCompleter comp) defaultMatcher
 main :: IO ()
 main = 
     flip evalStateT emptyCtx
-    $ evalRepl "Π > " exec cmd completer (return ())
+    $ evalRepl "λπ> " exec cmd completer (return ())
 
