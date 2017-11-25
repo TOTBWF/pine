@@ -31,15 +31,20 @@ universe = do
     k <- integer
     return $ Universe k
 
-lambda :: Parser Expr
-lambda = do
-    reserved "fun"
+typeof :: Parser (Variable, Expr)
+typeof = do
     x <- identifier
     reservedOp ":"
     t <- expr
+    return (Sym x, t)
+
+lambda :: Parser Expr
+lambda = do
+    reserved "fun"
+    ts <- many $ parens typeof
     reservedOp "=>"
     e <- expr
-    return $ Lambda (Sym x, t, e)
+    return $ foldr (\(x, t) e' -> Lambda(x, t, e')) e ts
 
 forall :: Parser Expr
 forall = do
