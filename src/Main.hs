@@ -13,6 +13,7 @@ import Pretty
 
 import Control.Monad.Trans
 import qualified Data.Text.Lazy as L
+import qualified Data.Text.Lazy.IO as L
 import qualified Data.Map as Map
 import Control.Monad.State.Strict
 
@@ -38,10 +39,10 @@ hoistErr (Left err) = do
   liftIO $ print err
   abort
 
-exec :: String -> Repl ()
+exec :: L.Text -> Repl ()
 exec line = do
     ctx <- get
-    let res = parseTop $ L.pack line
+    let res = parseTop line
     case res of
         Left err -> liftIO $ print err
         Right tp -> case tp of
@@ -74,6 +75,8 @@ help _ = liftIO $ do
     putStrLn ":quit                         Quits"
     putStrLn ":help                         Prints this message"
     putStrLn ":context                      Prints the Current Set Of Parameters and Definitions"
+    putStrLn ":dump <filename>              Dumps the current set of definitions to the specified file"
+    putStrLn ":load <filename>              Loads a set of definitions from a file"
     putStrLn "<var> : <expr>                Declares a variable <var> to be of type <expr>"
     putStrLn "<var> := <expr>               Defines a variable <var> to be <expr>"
     putStrLn ":type <expr>                 Checks the type of an expression"
@@ -99,13 +102,30 @@ eval args = do
     e <- hoistErr $ runInfer $ normalize expr ctx
     liftIO $ putStrLn ("    = " ++ ppExpr e ++ "\n    : " ++ ppExpr t)
 
+load :: [String] -> Repl ()
+load args = do
+    contents <- liftIO $ L.readFile (unwords args)
+    mapM_ exec $ L.lines contents
+    return ()
+
+dump :: [String] -> Repl ()
+dump args = do
+    defs <- gets rdefs
+    let path = head args
+    liftIO $ writeFile path $ unlines $ fmap writeBinding $ reverse defs
+    where writeBinding (x, (Type t)) = ppVariable x ++ " : " ++ ppExpr t
+          writeBinding (x, (Value _ e)) = ppVariable x ++ " := " ++ ppExpr e
+    -- L.writeFile
+
 cmd :: [(String, [String] -> Repl ())]
 cmd = [
     ("quit", quit),
     ("help", help),
     ("context", context),
     ("type", typeof),
-    ("eval", eval)
+    ("eval", eval),
+    ("load", load),
+    ("dump", dump)
   ]
 
 -- Tab Completion
@@ -114,7 +134,7 @@ defaultMatcher = []
 
 comp :: (Monad m, MonadState ReplState m) => WordCompleter m
 comp n = do
-    let cmds = [":quit", ":help", ":context", ":type", ":eval", "Type"]
+    let cmds = [":quit", ":help", ":context", ":type", ":eval", ":load", ":dump", "Type"]
     ctx <- gets rdefs
     let defs = fmap (ppVariable . fst) ctx 
     return $ filter (isPrefixOf n) (cmds ++ defs)
@@ -125,5 +145,5 @@ completer = Prefix (wordCompleter comp) defaultMatcher
 main :: IO ()
 main = 
     flip evalStateT initState
-    $ evalRepl "λπ> " exec cmd completer (return ())
+    $ evalRepl "λπ> " (exec . L.pack) cmd completer (return ())
 

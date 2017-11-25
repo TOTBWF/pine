@@ -11,6 +11,10 @@ parensIf ::  Bool -> Doc -> Doc
 parensIf True = parens
 parensIf False = id
 
+compressLambdas :: Int -> Expr -> Doc
+compressLambdas p (Lambda (x, t, e)) = parens (ppr p x <+> colon <+> ppr p t) <+> compressLambdas p e
+compressLambdas p e = text "=>" <+> ppr p e
+
 class Pretty p where
     ppr :: Int -> p -> Doc
 
@@ -24,7 +28,7 @@ instance Pretty Expr where
     ppr _ (Universe k) = text "Type" <+> integer k
     ppr p (Pi (Dummy, t1, t2)) = parensIf (p > 0) $ ppr (p + 1) t1 <+> text "->" <+> ppr p t2 
     ppr p (Pi (x, t1, t2)) = text "forall" <+> ppr p x <+> colon <+> ppr p t1 <> comma <+> ppr p t2
-    ppr p (Lambda (x, t, e)) = text "fun" <+> ppr p x <+> colon <+> ppr p t <+> text "=>" <+> ppr p e
+    ppr p (Lambda a) = text "fun" <+> compressLambdas p (Lambda a)
     ppr p (App e1 e2) = parensIf (p > 0) $ ppr p e1 <+> ppr (p + 1) e2
 
 ppExpr :: Expr -> String
