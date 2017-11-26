@@ -29,7 +29,9 @@ universe :: Parser ITerm
 universe = do
     reserved "Type"
     k <- integer
-    return $ IUniverse $ fromIntegral k
+    if k > 0
+    then return $ IUniverse $ fromIntegral k
+    else fail "Undefined Universe"
 
 prop :: Parser ITerm
 prop = do

@@ -89,14 +89,27 @@ typeof args = do
     t <- hoistErr $ runInfer ctx term
     liftIO $ putStrLn $ ppTerm ctx t
 
--- eval :: [String] -> Repl ()
--- eval args = do
---     ctx <- gets rctx
---     i <- hoistErr $ parseTerm $ L.pack $ unwords args
---     term <- hoistErr $ desugar ctx i
---     t <- hoistErr $ runInfer ctx term
---     e <- hoistErr $ runInfer $ whnf ctx term
---     liftIO $ putStrLn ("    = " ++ ppTermr e ++ "\n    : " ++ ppTerm t)
+debug :: [String] -> Repl ()
+debug args = do
+    ctx <- get 
+    i <- hoistErr $ parseTerm $ L.pack $ unwords args
+    liftIO $ putStrLn $ "Input: " ++ show i
+    term <- hoistErr $ desugar ctx i
+    liftIO $ putStrLn $ "Desugared: " ++ show term
+    liftIO $ putStrLn $ "Names: " ++ show (names ctx)
+    liftIO $ putStrLn $ "Decls: " ++ show (decls ctx)
+    t <- hoistErr $ runInfer ctx term
+    liftIO $ putStrLn $ ppTerm ctx t
+
+
+eval :: [String] -> Repl ()
+eval args = do
+    ctx <- get
+    i <- hoistErr $ parseTerm $ L.pack $ unwords args
+    term <- hoistErr $ desugar ctx i
+    t <- hoistErr $ runInfer ctx term
+    e <- hoistErr $ runInfer ctx term
+    liftIO $ putStrLn ("    = " ++ ppTerm ctx e ++ "\n    : " ++ ppTerm ctx t)
 
 load :: [String] -> Repl ()
 load args = do
@@ -117,8 +130,9 @@ cmd = [
     ("quit", quit),
     ("help", help),
     ("context", context),
-    ("type", typeof)
-    -- ("eval", eval)
+    ("type", typeof),
+    ("debug", debug),
+    ("eval", eval)
     -- ("load", load),
     -- ("dump", dump)
   ]
@@ -133,9 +147,8 @@ defaultMatcher = [
 comp :: (Monad m, MonadState Context m) => WordCompleter m
 comp n = do
     let cmds = [":quit", ":help", ":context", ":type", ":eval", ":load", ":dump", "Type"]
-    -- ctx <- gets rdefs
-    -- let defs = fmap (ppVariable . fst) ctx 
-    return $ filter (isPrefixOf n) (cmds)
+    defs <- gets names
+    return $ filter (isPrefixOf n) (cmds ++ defs)
 
 completer :: CompleterStyle (StateT Context IO)
 completer = Prefix (wordCompleter comp) defaultMatcher

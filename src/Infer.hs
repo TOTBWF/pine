@@ -14,6 +14,7 @@ data TypeError
     | PiExpected Term
     | FunctionExpected Term
     | MismatchError Term Term 
+    | Debug String
     deriving Show
 type Infer = ExceptT TypeError Identity
 
@@ -26,19 +27,40 @@ lookup ctx i = case lookupType ctx i of
     Just t -> return t
     Nothing -> throwError $ IndexError i
 
--- | Throws a unification error if the types do not unify
-equal :: Context -> Term -> Term -> Bool
-equal ctx e1 e2 = do
-    case (e1, e2) of
-        (Var k1, Var k2) -> (k1 == k2)
-        (Prop, Prop) -> True
-        (Universe k1, Universe k2) -> (k1 == k2)
-        (Pi a1, Pi a2) -> equalAbstraction ctx a1 a2
-        (Lambda a1, Lambda a2) -> equalAbstraction ctx a1 a2
-        (App f1 a1, App f2 a2) -> equal ctx f1 f2 && equal ctx a1 a2
+-- | Unifies two types
+unify :: Context -> Term -> Term -> Infer Term
+unify ctx e1 e2 = do
+    e1' <- nf ctx e1
+    e2' <- nf ctx e2
+    case (e1', e2') of
+        (Var k1, Var k2) -> 
+            if (k1 == k2) 
+            then return $ Var k1
+            else throwError $ MismatchError e1' e2'
+        (Prop, Prop) -> return Prop
+        (Prop, Universe k) -> return $ Universe k
+        (Universe k, Prop) -> return $ Universe k
+        (Universe k1, Universe k2) -> 
+            return $ Universe (max k1 k2)
+        (Pi a1, Pi a2) -> Pi <$> unifyAbstraction ctx a1 a2
+        (Lambda a1, Lambda a2) -> Lambda <$> unifyAbstraction ctx a1 a2
+        (App f1 a1, App f2 a2) -> do
+            f' <- unify ctx f1 f2 
+            a' <- unify ctx a1 a2
+            return $ App f' a'
+        (_, _) -> throwError $ MismatchError e1' e2'
+    where unifyAbstraction ctx (x1, t1, e1) (_, t2, e2) = do
+            t' <- unify ctx t1 t2 
+            e' <- unify (extendType ctx x1 t1) e1 e2
+            return (x1, t', e')
+
+-- | Determines if t1 is a subtype of t2
+subtype :: Context -> Term -> Term -> Bool
+subtype ctx t1 t2 = 
+    case (t1, t2) of
+        (Prop, Universe k) -> k > 0
+        (Universe k1, Universe k2) -> k2 >= k1
         (_, _) -> False
-    where equalAbstraction ctx (x1, t1, e1) (_, t2, e2) = 
-            equal ctx t1 t2 && equal (extendType ctx x1 t1) e1 e2
 
 -- | Infers the type of a term
 infer :: Context -> Term -> Infer Term
@@ -51,24 +73,20 @@ infer ctx t = case t of
         t' <- infer (extendType ctx x a) t
         return $ Pi (x, a, t')
     Pi (x, a, b) -> do
-        a' <- nf ctx =<< infer ctx a
+        a' <- infer ctx a
         b' <- nf ctx =<< infer (extendType ctx x a) b
         case b' of
-            Universe k -> do
-                if equal ctx a' b'
-                    then return $ Universe k
-                    else throwError $ MismatchError a' b'
+            Universe _ -> unify ctx a' b'
             Prop -> return Prop
-            t -> throwError $ UniverseExpected t
+            _ -> throwError $ UniverseExpected b'
     App f a -> do
-        f' <- infer ctx f
+        f' <- nf ctx =<< infer ctx f
         case f' of
             Pi (x, t, e) -> do
-                a' <- nf ctx =<< infer ctx a
-                t' <- nf ctx =<< infer ctx t
-                if equal ctx a' t' 
-                    then return $ Subst (Dot a idShift) e
-                    else throwError $ MismatchError a' t'
+                a' <- infer ctx a
+                _ <- unify ctx a' t
+                -- if equal ctx a' t' 
+                return $ Subst (Dot a idShift) e
             t -> throwError $ PiExpected t
 
 -- | Evaluates a term to weak head normal form
