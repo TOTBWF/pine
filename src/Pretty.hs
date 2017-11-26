@@ -22,6 +22,7 @@ class Pretty p where
 instance Pretty Term where
     ppr p ctx (Var x) = text "TODO"
     ppr _ ctx (Universe k) = text "Type" <+> integer (toInteger k)
+    ppr _ ctx (Prop) = text "Prop"
     ppr p ctx (Pi ("_", t1, t2)) = parensIf (p > 0) $ ppr (p + 1) ctx t1 <+> text "->" <+> ppr (p + 1) ctx t2 
     ppr p ctx (Pi (x, t1, t2)) = text "forall" <+> text x <+> colon <+> ppr p ctx t1 <> comma <+> ppr p ctx t2
     ppr p ctx (Lambda a) = text "fun" <+> compressLambdas p ctx (Lambda a)
