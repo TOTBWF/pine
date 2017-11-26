@@ -18,7 +18,8 @@ reservedNames :: [String]
 reservedNames = [
         "fun",
         "forall",
-        "Type"
+        "Type",
+        "Prop"
     ]
 
 reservedOpNames :: [String]

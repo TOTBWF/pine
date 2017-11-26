@@ -17,98 +17,104 @@ import Syntax
 
 import Debug.Trace
 
--- integer :: Parser Integer
--- integer = Tok.integer lexer
+integer :: Parser Integer
+integer = Tok.integer lexer
 
--- variable :: Parser Expr
--- variable = do
---     x <- identifier
---     return $ Var (Sym x)
+variable :: Parser ITerm
+variable = do
+    x <- identifier
+    return $ IVar x
 
--- universe :: Parser Expr
--- universe = do
---     reserved "Type"
---     k <- integer
---     return $ Universe k
+universe :: Parser ITerm
+universe = do
+    reserved "Type"
+    k <- integer
+    return $ IUniverse $ fromIntegral k
 
--- typeof :: Parser (Variable, Expr)
--- typeof = do
---     x <- identifier
---     reservedOp ":"
---     t <- expr
---     return (Sym x, t)
+prop :: Parser ITerm
+prop = do
+    reserved "Prop"
+    return IProp
 
--- lambda :: Parser Expr
--- lambda = do
---     reserved "fun"
---     ts <- many $ parens typeof
---     reservedOp "=>"
---     e <- expr
---     return $ foldr (\(x, t) e' -> Lambda(x, t, e')) e ts
+typeof :: Parser (Variable, ITerm)
+typeof = do
+    x <- identifier
+    reservedOp ":"
+    t <- term
+    return (x, t)
 
--- forall :: Parser Expr
--- forall = do
---     reserved "forall"
---     x <- identifier
---     reservedOp ":"
---     t <- expr
---     _ <- comma
---     e <- expr
---     return $ Pi (Sym x, t, e)
+lambda :: Parser ITerm
+lambda = do
+    reserved "fun"
+    ts <- many $ parens typeof
+    reservedOp "=>"
+    e <- term
+    return $ foldr (\(x, t) e' -> ILambda(x, t, e')) e ts
 
--- aexp :: Parser Expr
--- aexp = 
---         parens expr
---     <|> lambda
---     <|> universe
---     <|> forall
---     <|> variable
+forall :: Parser ITerm
+forall = do
+    reserved "forall"
+    x <- identifier
+    reservedOp ":"
+    t <- term
+    _ <- comma
+    e <- term
+    return $ IPi (x, t, e)
+
+aexp :: Parser ITerm
+aexp = 
+        parens term
+    <|> lambda
+    <|> prop
+    <|> universe
+    <|> forall
+    <|> variable
 
 
--- term :: Parser Expr
--- term = aexp >>= \x ->
---                 (many1 aexp >>= \xs -> return $ foldl App x xs)
---                 <|> return x
+t :: Parser ITerm
+t = aexp >>= \x ->
+                (many1 aexp >>= \xs -> return $ foldl IApp x xs)
+                <|> return x
 
--- infixOp :: String -> (a -> a -> a) -> Ex.Assoc -> Op a
--- infixOp x f = Ex.Infix (reservedOp x >> return f)
+infixOp :: String -> (a -> a -> a) -> Ex.Assoc -> Op a
+infixOp x f = Ex.Infix (reservedOp x >> return f)
 
--- table :: Operators Expr
--- table = [
---         [
---             infixOp "->" (\t1 t2 -> Pi (Dummy, t1, t2)) Ex.AssocLeft
---         ]
---     ]
+table :: Operators ITerm
+table = [
+        [
+            infixOp "->" (\t1 t2 -> IPi ("_", t1, t2)) Ex.AssocLeft
+        ]
+    ]
 
--- expr :: Parser Expr
--- expr = Ex.buildExpressionParser table term
+term :: Parser ITerm
+term = Ex.buildExpressionParser table t
 
--- data Top 
---     = Parameter Variable Expr
---     | Definition Variable Expr 
+data Top 
+    = Parameter Variable ITerm
+    | Definition Variable ITerm 
 
--- parameter :: Parser Top
--- parameter = do
---     x <- identifier
---     reservedOp ":"
---     t <- expr
---     return $ Parameter (Sym x) t
+parameter :: Parser Top
+parameter = do
+    x <- identifier
+    reservedOp ":"
+    t <- term
+    return $ Parameter x t
 
--- definition :: Parser Top
--- definition = do
---     x <- identifier
---     reservedOp ":="
---     t <- expr
---     return $ Definition (Sym x) t
+definition :: Parser Top
+definition = do
+    x <- identifier
+    reservedOp ":="
+    t <- term
+    return $ Definition x t
 
--- top :: Parser Top
--- top =
---         try parameter
---     <|> definition
+top :: Parser Top
+top =
+        try parameter
+    <|> definition
 
--- parseExpr :: L.Text -> Either ParseError Expr
--- parseExpr s = parse expr "<stdint>" s
+parseTerm :: L.Text -> Either ParseError ITerm
+parseTerm s = parse term "<stdint>" s
 
--- parseTop :: L.Text -> Either ParseError Top
--- parseTop s = parse top "<stdint>" s
+parseTop :: L.Text -> Either ParseError Top
+parseTop s = parse top "<stdint>" s
 

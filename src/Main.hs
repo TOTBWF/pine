@@ -6,9 +6,9 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Main where
 
--- import Parser
--- import Syntax
--- import Infer
+import Parser
+import Syntax
+import Infer
 -- import Pretty
 
 -- import Control.Monad.Trans

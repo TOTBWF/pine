@@ -3,24 +3,40 @@ module Syntax where
 type Variable = String
 type Index = Int
 
+type Abstraction = (Variable, Term, Term)-- We Retain variable names for the purpose of pretty-printing
+
 data Term
     = Var Index 
     | Subst Substitution Term
     | Prop
     | Universe Int 
     | App Term Term
-    | Lambda Variable Term Term -- We Retain variable names for the purpose of pretty-printing
-    | Pi Variable Term Term
+    | Lambda Abstraction
+    | Pi Abstraction
+    deriving Show
+
+type IAbstraction = (Variable, ITerm, ITerm)-- We Retain variable names for the purpose of pretty-printing
+
+data ITerm
+    = IVar Variable 
+    | IProp
+    | IUniverse Int 
+    | IApp ITerm ITerm
+    | ILambda IAbstraction
+    | IPi IAbstraction
     deriving Show
 
 data Substitution
     = Shift Index -- 'Shift k' represents adding k to all indicies
-    | Dot Term Substitution -- 'Dot e s' represents pushing 't' to the context stack and use 's'
+    | Dot Term Substitution -- 'Dot e s' represents pushing 'e' to the context stack and use 's'
     deriving Show
 
 -- | Creates a term that will shift all indicies by k when evaluated
 shift :: Index -> Term -> Term
 shift k t = Subst (Shift k) t
+
+idShift :: Substitution
+idShift = Shift 0
 
 -- | Composes 2 substitutions
 compose :: Substitution -> Substitution -> Substitution
@@ -39,16 +55,16 @@ subst s t = case (s,t) of
     (s, Subst t e) -> subst s $ subst t e
     (_, Prop) -> Prop
     (_, Universe k) -> Universe k
-    (s, Lambda x t e) -> substAbstraction s t e (Lambda x) 
-    (s, Pi x t e) -> substAbstraction s t e (Pi x) 
+    (s, Lambda a) -> Lambda $ substAbstraction s a 
+    (s, Pi a) -> Pi $ substAbstraction s a
     (s, App e1 e2) -> App (subst s e1) (subst s e2)
 
 -- | Helper function for substituting in a lambda/pi
-substAbstraction :: Substitution -> Term -> Term -> (Term -> Term -> Term) -> Term
-substAbstraction s t e c = 
+substAbstraction :: Substitution -> Abstraction -> Abstraction
+substAbstraction s (x, t, e) = 
     let t' = Subst s t
         e' = Subst (Dot (Var 0) (Shift 1 `compose` s)) e
-    in c t' e'
+    in (x, t', e')
 
 -- | Determines if a variable with index level 'k' is free in term 't'
 free :: Index -> Term -> Bool
@@ -57,7 +73,7 @@ free k t = case t of
     Subst s e -> free k (subst s e)
     Prop -> False
     Universe _ -> False
-    Pi _ t e -> freeAbstraction k t e
-    Lambda _ t e -> freeAbstraction k t e
+    Pi a -> freeAbstraction k a
+    Lambda a -> freeAbstraction k a
     App e1 e2 -> free k e1 || free k e2
-    where freeAbstraction k t e = free k t || free (k + 1) e
+    where freeAbstraction k (_, t, e) = free k t || free (k + 1) e
