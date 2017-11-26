@@ -89,3 +89,22 @@ whnf ctx e = case e of
             Var _ -> return $ App e1 e2
             App _ _ -> return $ App e1 e2
             t -> throwError $ FunctionExpected t
+
+-- | Evaluates a term to normal form
+nf :: Context -> Term -> Infer Term
+nf ctx e = case e of
+    Var k -> case lookupDefinition ctx k of
+        Just e -> whnf ctx e
+        Nothing -> return e
+    Universe _ -> return e
+    Prop -> return e
+    Pi a -> return $ Pi a
+    Lambda a -> return $ Lambda a
+    Subst s e -> whnf ctx (subst s e)
+    App e1 e2 -> do
+        e1' <- whnf ctx e1
+        case e1' of
+            Lambda(_, _, e) -> whnf ctx (Subst (Dot e2 idShift) e)
+            Var _ -> return $ App e1 e2
+            App _ _ -> return $ App e1 e2
+            t -> throwError $ FunctionExpected t
