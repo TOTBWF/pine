@@ -143,7 +143,7 @@ inferUniverse t ctx = do
     u' <- normalize u ctx
     case u' of
         Universe k -> return k
-        _ -> throwError FunctionExpected
+        _ -> throwError TypeExpected
 
 inferPi :: Expr -> Context -> Infer Abstraction
 inferPi e ctx = do

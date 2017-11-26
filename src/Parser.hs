@@ -15,8 +15,6 @@ import qualified Data.Text.Lazy as L
 import Lexer
 import Syntax
 
-import Debug.Trace
-
 integer :: Parser Integer
 integer = Tok.integer lexer
 
