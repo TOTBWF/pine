@@ -20,23 +20,16 @@ splitStr s =
 -- Given a string 'x' and a variable substitution set 's',
 -- Does a variable that normalizes to 'x' exist in the co-domain of 's'
 used :: VarSubst -> String -> Bool
-used s x = Map.foldr (\y b -> b || exists y) False s
-    where exists (Dummy) = False
-          exists (Sym y) = x == y
-          exists (GenSym y _) = x == y
+used s x = Map.foldr (\y b -> b || (x == y)) False s
         
 
 -- Given a variable 'v' and a variable substitution set 's',
 -- Finds a variant of 'v' that is not in the co-domain of 's'
 findAvailible :: Variable -> VarSubst -> String   
-findAvailible v s = 
+findAvailible x s = 
     if not $ used s x 
         then x 
         else findAvailible' $ splitStr x
-    where stringify (Sym s) = s
-          stringify (GenSym s _) = s
-          stringify (Dummy) = "_"
-          x = stringify v
           findAvailible' (b, p) = 
             if used s (x ++ show p) 
                 then findAvailible' (b, p + 1)
