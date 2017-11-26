@@ -18,6 +18,7 @@ import qualified Data.Text.Lazy as L
 import qualified Data.Text.Lazy.IO as L
 import qualified Data.Map as Map
 import Control.Monad.State.Strict
+import Control.Monad.Except
 
 import Data.List (isPrefixOf, foldl')
 
@@ -75,10 +76,10 @@ help _ = liftIO $ do
     putStrLn ":type <expr>                 Checks the type of an expression"
     putStrLn ":eval <expr>                  Evaluates an <expr>"
 
--- context :: a -> Repl ()
--- context _ = do
---     ctx <- gets rdefs
---     liftIO $ mapM_ putStrLn $ ppEnv $ reverse ctx
+context :: a -> Repl ()
+context _ = do
+    ctx <- get 
+    liftIO $ putStrLn $ show ctx
 
 typeof :: [String] -> Repl ()
 typeof args = do
@@ -115,7 +116,7 @@ cmd :: [(String, [String] -> Repl ())]
 cmd = [
     ("quit", quit),
     ("help", help),
-    -- ("context", context),
+    ("context", context),
     ("type", typeof)
     -- ("eval", eval)
     -- ("load", load),

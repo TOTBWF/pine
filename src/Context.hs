@@ -7,11 +7,13 @@ import Syntax
 data Declaration
     = Type Term 
     | Definition Term Term -- 'Definition t e' where t is the declared type and e is the defining expression
+    deriving Show
 
 data Context = Context {
         names :: [Variable],
         decls :: [Declaration]
     }
+    deriving Show
 
 emptyCtx :: Context
 emptyCtx = Context {
@@ -59,4 +61,10 @@ extendDefinition :: Context -> Variable -> Term -> Term -> Context
 extendDefinition ctx v t d = Context {
         names = v:names ctx,
         decls = (Definition t d):decls ctx
+    }
+
+extendName :: Context -> Variable -> Context
+extendName ctx v = Context {
+        names = v:names ctx,
+        decls = decls ctx
     }

@@ -18,7 +18,7 @@ data TypeError
 type Infer = ExceptT TypeError Identity
 
 runInfer :: Context -> Term -> Either TypeError Term
-runInfer ctx t = runExcept (infer ctx t)
+runInfer ctx t = runExcept (nf ctx =<< infer ctx t)
 
 -- Wrap context lookup inside a monadic error handler
 lookup :: Context -> Index -> Infer Term
@@ -46,26 +46,26 @@ infer ctx t = case t of
     Prop -> return $ Universe 1
     Universe k -> return $ Universe (k + 1)
     Var k -> lookup ctx k
+    Subst s e -> infer ctx (subst s e)
     Lambda (x, a, t) -> do
         t' <- infer (extendType ctx x a) t
         return $ Pi (x, a, t')
     Pi (x, a, b) -> do
-        b' <- infer (extendType ctx x a) b
+        a' <- nf ctx =<< infer ctx a
+        b' <- nf ctx =<< infer (extendType ctx x a) b
         case b' of
             Universe k -> do
-                a' <- whnf ctx =<< infer ctx a
-                b'' <- whnf ctx b'
-                if equal ctx a' b''
+                if equal ctx a' b'
                     then return $ Universe k
-                    else throwError $ MismatchError a' b''
+                    else throwError $ MismatchError a' b'
             Prop -> return Prop
             t -> throwError $ UniverseExpected t
     App f a -> do
         f' <- infer ctx f
         case f' of
             Pi (x, t, e) -> do
-                a' <- whnf ctx =<< infer ctx a
-                t' <- whnf ctx =<< infer ctx t
+                a' <- nf ctx =<< infer ctx a
+                t' <- nf ctx =<< infer ctx t
                 if equal ctx a' t' 
                     then return $ Subst (Dot a idShift) e
                     else throwError $ MismatchError a' t'
@@ -73,38 +73,38 @@ infer ctx t = case t of
 
 -- | Evaluates a term to weak head normal form
 whnf :: Context -> Term -> Infer Term
-whnf ctx e = case e of
-    Var k -> case lookupDefinition ctx k of
-        Just e -> whnf ctx e
-        Nothing -> return e
-    Universe _ -> return e
-    Prop -> return e
-    Pi a -> return $ Pi a
-    Lambda a -> return $ Lambda a
-    Subst s e -> whnf ctx (subst s e)
-    App e1 e2 -> do
-        e1' <- whnf ctx e1
-        case e1' of
-            Lambda(_, _, e) -> whnf ctx (Subst (Dot e2 idShift) e)
-            Var _ -> return $ App e1 e2
-            App _ _ -> return $ App e1 e2
-            t -> throwError $ FunctionExpected t
+whnf = norm True
+
+-- | Evaluates a term to weak head normal form
+nf :: Context -> Term -> Infer Term
+nf = norm False
 
 -- | Evaluates a term to normal form
-nf :: Context -> Term -> Infer Term
-nf ctx e = case e of
+norm :: Bool -> Context -> Term -> Infer Term
+norm weak ctx e = case e of
     Var k -> case lookupDefinition ctx k of
-        Just e -> whnf ctx e
+        Just e -> norm weak ctx e
         Nothing -> return e
     Universe _ -> return e
     Prop -> return e
-    Pi a -> return $ Pi a
-    Lambda a -> return $ Lambda a
-    Subst s e -> whnf ctx (subst s e)
+    Pi a -> Pi <$> normAbstraction weak ctx a
+    Lambda a -> Lambda <$> normAbstraction weak ctx a
+    Subst s e -> norm weak ctx (subst s e)
     App e1 e2 -> do
-        e1' <- whnf ctx e1
+        e1' <- norm weak ctx e1
         case e1' of
-            Lambda(_, _, e) -> whnf ctx (Subst (Dot e2 idShift) e)
-            Var _ -> return $ App e1 e2
-            App _ _ -> return $ App e1 e2
+            Lambda(_, _, e) -> norm weak ctx (Subst (Dot e2 idShift) e)
+            Var _ -> normApp weak ctx e1 e2
+            App _ _ -> normApp weak ctx e1 e2
             t -> throwError $ FunctionExpected t
+    where 
+        normAbstraction weak ctx (x,t,e) = 
+            if weak 
+            then return (x, t, e)
+            else do
+                t' <- norm weak ctx t
+                e' <- norm weak (extendType ctx x t) e
+                return (x, t', e')
+        normApp weak ctx e1 e2 = do
+            e2' <- if weak then return e2 else norm weak ctx e2
+            return $ App e1 e2'
