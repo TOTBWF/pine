@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Parser where
+module Parser (parseTerm, parseTop, Top(IParameter, IDefinition)) where
 
 import Prelude hiding (pi)
 
@@ -90,22 +90,22 @@ term :: Parser ITerm
 term = Ex.buildExpressionParser table t
 
 data Top 
-    = Parameter Variable ITerm
-    | Definition Variable ITerm 
+    = IParameter Variable ITerm
+    | IDefinition Variable ITerm 
 
 parameter :: Parser Top
 parameter = do
     x <- identifier
     reservedOp ":"
     t <- term
-    return $ Parameter x t
+    return $ IParameter x t
 
 definition :: Parser Top
 definition = do
     x <- identifier
     reservedOp ":="
     t <- term
-    return $ Definition x t
+    return $ IDefinition x t
 
 top :: Parser Top
 top =

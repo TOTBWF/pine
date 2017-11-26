@@ -13,6 +13,12 @@ data Context = Context {
         decls :: [Declaration]
     }
 
+emptyCtx :: Context
+emptyCtx = Context {
+        names = [],
+        decls = []
+    }
+
 -- We redefine !! because the default prelude version is unsafe
 (!!) :: (Integral n) => [a] -> n -> Maybe a
 (!!) xs i = index xs (toInteger i)

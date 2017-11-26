@@ -14,7 +14,11 @@ data TypeError
     | PiExpected Term
     | FunctionExpected Term
     | MismatchError Term Term 
+    deriving Show
 type Infer = ExceptT TypeError Identity
+
+runInfer :: Context -> Term -> Either TypeError Term
+runInfer ctx t = runExcept (infer ctx t)
 
 -- Wrap context lookup inside a monadic error handler
 lookup :: Context -> Index -> Infer Term
