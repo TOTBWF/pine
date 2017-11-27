@@ -19,7 +19,8 @@ reservedNames = [
         "fun",
         "forall",
         "Type",
-        "Prop"
+        "Prop",
+        "Inductive"
     ]
 
 reservedOpNames :: [String]
@@ -27,7 +28,8 @@ reservedOpNames = [
         "=>",
         "->",
         "::",
-        ":="
+        ":=",
+        "|"
     ]
 
 lexer :: Tok.GenTokenParser L.Text () Identity

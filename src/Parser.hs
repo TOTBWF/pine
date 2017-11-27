@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Parser (parseTerm, parseTop, Top(IParameter, IDefinition)) where
+module Parser (parseTerm, parseTop, Top(IParameter, IDefinition, IInductive)) where
 
 import Prelude hiding (pi)
 
@@ -44,6 +44,10 @@ typeof = do
     reservedOp "::"
     t <- term
     return (x, t)
+
+
+
+
 
 lambda :: Parser ITerm
 lambda = do
@@ -94,6 +98,7 @@ term = Ex.buildExpressionParser table t
 data Top 
     = IParameter Variable ITerm
     | IDefinition Variable ITerm 
+    | IInductive Variable ITerm [(Variable, ITerm)]
 
 parameter :: Parser Top
 parameter = do
@@ -109,10 +114,19 @@ definition = do
     t <- term
     return $ IDefinition x t
 
+inductive :: Parser Top
+inductive = do
+    reserved "Inductive"
+    (n, t) <- typeof
+    reservedOp ":="
+    c <- typeof `sepBy1` reservedOp "|" 
+    return $ IInductive n t c
+
 top :: Parser Top
 top =
         try parameter
     <|> definition
+    <|> inductive
 
 parseTerm :: L.Text -> Either ParseError ITerm
 parseTerm s = parse term "<stdint>" s

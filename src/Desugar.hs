@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module Desugar where
 
 import Syntax
@@ -12,7 +13,6 @@ index :: [Variable] -> Variable -> Either DesugarError Int
 index ctx x = case elemIndex x ctx of
     Just i -> Right i
     Nothing -> Left $ UnknownIdentifier x
-
 
 -- Transforms an input term into the DeBruijn Index form
 desugar :: Context -> ITerm -> Either DesugarError Term
@@ -32,3 +32,4 @@ desugar c i = desugar' (names c) i
                 t' <- desugar' ctx t
                 e' <- desugar' (x:ctx) e
                 return (x, t', e')
+

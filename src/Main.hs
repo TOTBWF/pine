@@ -14,6 +14,7 @@ import Pretty
 import Desugar
 
 import Control.Monad.Trans
+import Control.Monad
 import qualified Data.Text.Lazy as L
 import qualified Data.Text.Lazy.IO as L
 import qualified Data.Map as Map
@@ -57,6 +58,15 @@ exec line = do
                 let ctx' = extendDefinition ctx x t e 
                 put ctx'
                 return ()
+            IInductive x i c -> do
+                e <- hoistErr $ desugar ctx i
+                let ctx' = extendType ctx x e
+                ctx'' <- foldM (\ctx (x', i') -> do 
+                        e' <- hoistErr $ desugar ctx i'
+                        return $ extendType ctx x' e') ctx' c
+                put ctx''
+                return ()
+
 
 -- Commands
 
@@ -86,7 +96,7 @@ typeof args = do
     ctx <- get 
     i <- hoistErr $ parseTerm $ L.pack $ unwords args
     term <- hoistErr $ desugar ctx i
-    t <- hoistErr $ runInfer ctx term
+    t <- hoistErr $ runNormalize ctx =<< runInfer ctx term
     liftIO $ putStrLn $ ppTerm ctx t
 
 debug :: [String] -> Repl ()
