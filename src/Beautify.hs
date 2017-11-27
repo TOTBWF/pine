@@ -6,12 +6,6 @@ import Text.Read
 
 import Syntax
 
-
-
-
--- type VarSubst = Map.Map Variable Variable
-
-
 -- Splits a string into a base and a numerical postfix
 splitStr :: String -> (String, Integer)
 splitStr s = 

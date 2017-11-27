@@ -97,9 +97,8 @@ debug args = do
     term <- hoistErr $ desugar ctx i
     liftIO $ putStrLn $ "Desugared: " ++ show term
     liftIO $ putStrLn $ "Names: " ++ show (names ctx)
-    liftIO $ putStrLn $ "Decls: " ++ show (decls ctx)
     t <- hoistErr $ runInfer ctx term
-    liftIO $ putStrLn $ ppTerm ctx t
+    liftIO $ putStrLn $ "Desugard Type: " ++ show t
 
 
 eval :: [String] -> Repl ()
@@ -108,7 +107,7 @@ eval args = do
     i <- hoistErr $ parseTerm $ L.pack $ unwords args
     term <- hoistErr $ desugar ctx i
     t <- hoistErr $ runInfer ctx term
-    e <- hoistErr $ runInfer ctx term
+    e <- hoistErr $ runNormalize ctx term
     liftIO $ putStrLn ("    = " ++ ppTerm ctx e ++ "\n    : " ++ ppTerm ctx t)
 
 load :: [String] -> Repl ()
@@ -117,13 +116,14 @@ load args = do
     mapM_ exec $ L.lines contents
     return ()
 
--- dump :: [String] -> Repl ()
--- dump args = do
---     defs <- gets rdefs
---     let path = head args
---     liftIO $ writeFile path $ unlines $ fmap writeBinding $ reverse defs
---     where writeBinding (x, (Type t)) = ppVariable x ++ " : " ++ ppExpr t
---           writeBinding (x, (Value _ e)) = ppVariable x ++ " := " ++ ppExpr e
+dump :: [String] -> Repl ()
+dump args = do
+    ctx <- get
+    let defs = reverse $ zip (names ctx) (decls ctx)  
+    let path = head args
+    liftIO $ writeFile path $ unlines $ fmap (writeDecl ctx) defs
+    where writeDecl ctx (x, (Type t)) = x ++ " : " ++ ppTerm ctx t
+          writeDecl ctx (x, (Definition _ e)) = x ++ " := " ++ ppTerm ctx e
 
 cmd :: [(String, [String] -> Repl ())]
 cmd = [
@@ -132,9 +132,9 @@ cmd = [
     ("context", context),
     ("type", typeof),
     ("debug", debug),
-    ("eval", eval)
+    ("eval", eval),
     -- ("load", load),
-    -- ("dump", dump)
+    ("dump", dump)
   ]
 
 -- Tab Completion
@@ -146,7 +146,7 @@ defaultMatcher = [
 
 comp :: (Monad m, MonadState Context m) => WordCompleter m
 comp n = do
-    let cmds = [":quit", ":help", ":context", ":type", ":eval", ":load", ":dump", "Type"]
+    let cmds = [":quit", ":help", ":context", ":type", ":eval", ":load", ":dump", "Type", "Prop", "fun", "forall"]
     defs <- gets names
     return $ filter (isPrefixOf n) (cmds ++ defs)
 

@@ -7,7 +7,6 @@ import Control.Monad.Identity
 import Syntax
 import Context
 
-
 data TypeError 
     = IndexError Index
     | UniverseExpected Term
@@ -16,10 +15,14 @@ data TypeError
     | MismatchError Term Term 
     | Debug String
     deriving Show
+
 type Infer = ExceptT TypeError Identity
 
 runInfer :: Context -> Term -> Either TypeError Term
-runInfer ctx t = runExcept (nf ctx =<< infer ctx t)
+runInfer ctx t = runExcept (whnf ctx =<< infer ctx t)
+
+runNormalize :: Context -> Term -> Either TypeError Term
+runNormalize ctx t = runExcept (nf ctx t)
 
 -- Wrap context lookup inside a monadic error handler
 lookup :: Context -> Index -> Infer Term
@@ -30,8 +33,8 @@ lookup ctx i = case lookupType ctx i of
 -- | Unifies two types
 unify :: Context -> Term -> Term -> Infer Term
 unify ctx e1 e2 = do
-    e1' <- nf ctx e1
-    e2' <- nf ctx e2
+    e1' <- whnf ctx e1
+    e2' <- whnf ctx e2
     case (e1', e2') of
         (Var k1, Var k2) -> 
             if (k1 == k2) 
@@ -54,14 +57,6 @@ unify ctx e1 e2 = do
             e' <- unify (extendType ctx x1 t1) e1 e2
             return (x1, t', e')
 
--- | Determines if t1 is a subtype of t2
-subtype :: Context -> Term -> Term -> Bool
-subtype ctx t1 t2 = 
-    case (t1, t2) of
-        (Prop, Universe k) -> k > 0
-        (Universe k1, Universe k2) -> k2 >= k1
-        (_, _) -> False
-
 -- | Infers the type of a term
 infer :: Context -> Term -> Infer Term
 infer ctx t = case t of
@@ -74,18 +69,17 @@ infer ctx t = case t of
         return $ Pi (x, a, t')
     Pi (x, a, b) -> do
         a' <- infer ctx a
-        b' <- nf ctx =<< infer (extendType ctx x a) b
+        b' <- whnf ctx =<< infer (extendType ctx x a) b
         case b' of
             Universe _ -> unify ctx a' b'
             Prop -> return Prop
             _ -> throwError $ UniverseExpected b'
     App f a -> do
-        f' <- nf ctx =<< infer ctx f
+        f' <- whnf ctx =<< infer ctx f
         case f' of
             Pi (x, t, e) -> do
                 a' <- infer ctx a
-                _ <- unify ctx a' t
-                -- if equal ctx a' t' 
+                _ <- unify ctx t a'
                 return $ Subst (Dot a idShift) e
             t -> throwError $ PiExpected t
 
@@ -112,8 +106,8 @@ norm weak ctx e = case e of
         e1' <- norm weak ctx e1
         case e1' of
             Lambda(_, _, e) -> norm weak ctx (Subst (Dot e2 idShift) e)
-            Var _ -> normApp weak ctx e1 e2
-            App _ _ -> normApp weak ctx e1 e2
+            Var _ -> normApp weak ctx e1' e2
+            App _ _ -> normApp weak ctx e1' e2
             t -> throwError $ FunctionExpected t
     where 
         normAbstraction weak ctx (x,t,e) = 

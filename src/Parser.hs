@@ -41,7 +41,7 @@ prop = do
 typeof :: Parser (Variable, ITerm)
 typeof = do
     x <- identifier
-    reservedOp ":"
+    reservedOp "::"
     t <- term
     return (x, t)
 
@@ -57,7 +57,7 @@ forall :: Parser ITerm
 forall = do
     reserved "forall"
     x <- identifier
-    reservedOp ":"
+    reservedOp "::"
     t <- term
     _ <- comma
     e <- term
@@ -84,7 +84,7 @@ infixOp x f = Ex.Infix (reservedOp x >> return f)
 table :: Operators ITerm
 table = [
         [
-            infixOp "->" (\t1 t2 -> IPi ("_", t1, t2)) Ex.AssocLeft
+            infixOp "->" (\t1 t2 -> IPi ("_", t1, t2)) Ex.AssocRight
         ]
     ]
 
@@ -98,7 +98,7 @@ data Top
 parameter :: Parser Top
 parameter = do
     x <- identifier
-    reservedOp ":"
+    reservedOp "::"
     t <- term
     return $ IParameter x t
 
