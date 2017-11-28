@@ -1,0 +1,5 @@
+-- Natural Numbers
+inductive Nat :: Type 1 := z :: Nat | s :: Nat -> Nat
+
+-- Lists
+inductive List (A :: Type 1) :: Type 1 := Nil :: forall A :: Type 1, List A | Cons :: forall A :: Type 1, A -> List A -> List A
