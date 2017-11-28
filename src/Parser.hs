@@ -38,21 +38,22 @@ prop = do
     reserved "Prop"
     return IProp
 
-typeof :: Parser (Variable, ITerm)
-typeof = do
-    x <- identifier
+typeann :: Parser ITerm
+typeann = do
     reservedOp "::"
     t <- term
+    return t
+
+typedef :: Parser (Variable, ITerm)
+typedef = do
+    x <- identifier
+    t <- typeann
     return (x, t)
-
-
-
-
 
 lambda :: Parser ITerm
 lambda = do
     reserved "fun"
-    ts <- many $ parens typeof
+    ts <- many $ parens typedef
     reservedOp "=>"
     e <- term
     return $ foldr (\(x, t) e' -> ILambda(x, t, e')) e ts
@@ -97,30 +98,33 @@ term = Ex.buildExpressionParser table t
 
 data Top 
     = IParameter Variable ITerm
-    | IDefinition Variable ITerm 
+    | IDefinition Variable ITerm --ITerm 
     | IInductive Variable ITerm [(Variable, ITerm)]
 
 parameter :: Parser Top
 parameter = do
-    x <- identifier
-    reservedOp "::"
-    t <- term
+    (x, t) <- typedef
     return $ IParameter x t
 
 definition :: Parser Top
 definition = do
+    reserved "let"
     x <- identifier
+    -- args <- many $ parens typedef
+    -- t <- typeann
     reservedOp ":="
-    t <- term
-    return $ IDefinition x t
+    e <- term
+    return $ IDefinition x e --e
 
 inductive :: Parser Top
 inductive = do
-    reserved "Inductive"
-    (n, t) <- typeof
+    reserved "inductive"
+    n <- identifier
+    args <- many $ parens typedef
+    t <- typeann
     reservedOp ":="
-    c <- typeof `sepBy1` reservedOp "|" 
-    return $ IInductive n t c
+    c <- typedef `sepBy1` reservedOp "|" 
+    return $ IInductive n (foldr (\(x, t) p -> IPi (x, t, p)) t args) c
 
 top :: Parser Top
 top =

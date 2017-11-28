@@ -18,6 +18,7 @@ reservedNames :: [String]
 reservedNames = [
         "fun",
         "forall",
+        "let",
         "Type",
         "Prop",
         "Inductive"

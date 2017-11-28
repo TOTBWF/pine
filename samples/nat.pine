@@ -8,7 +8,9 @@ two := fun (A : Type 0) (f : A -> A) (x : A) => f (f x)
 three := fun (A : Type 0) (f : A -> A) (x : A) => f (f (f x))
 plus := fun (m : numeral) (n : numeral) (A : Type 0) (f : A -> A) (x : A) => m A f (n A f x)
 
-N : Prop
-z : N
-s : N -> N
+Nat : Prop
+z : Nat
+s : Nat -> Nat
+
 nat_elim := forall P : Nat -> Prop, P z -> (forall n : Nat, P n -> P (s z)) -> (forall n : Nat, P n)
+nat_elim := fun (P : Nat -> Prop) (ze : P z) (se : fun (l : Nat) => )
