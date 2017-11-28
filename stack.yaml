@@ -47,6 +47,7 @@ packages:
 extra-deps: []
   # - repline-0.1.7.0
 
+extra-deps: []
 
 # Override default flag values for local packages and extra-deps
 flags: {}

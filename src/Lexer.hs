@@ -18,15 +18,19 @@ reservedNames :: [String]
 reservedNames = [
         "fun",
         "forall",
-        "Type"
+        "let",
+        "Type",
+        "Prop",
+        "Inductive"
     ]
 
 reservedOpNames :: [String]
 reservedOpNames = [
         "=>",
         "->",
-        ":",
-        ":="
+        "::",
+        ":=",
+        "|"
     ]
 
 lexer :: Tok.GenTokenParser L.Text () Identity

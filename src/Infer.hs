@@ -1,206 +1,122 @@
 module Infer where
 
+import Prelude hiding (lookup)
 import Control.Monad.Except
-import Control.Monad.State
-import Data.Map as Map
+import Control.Monad.Identity
 
 import Syntax
+import Context
 
-type Subst = Map.Map Variable Expr
-
-data Unique = Unique { count :: Integer }
-
-data TypeError
-    = UnknownIdentifier Variable
-    | TypeExpected
-    | FunctionExpected
-    | EqualityError Expr Expr
+data TypeError 
+    = IndexError Index
+    | UniverseExpected Term
+    | PiExpected Term
+    | FunctionExpected Term
+    | MismatchError Term Term 
+    | Debug String
     deriving Show
 
-type Infer a = ExceptT TypeError (State Unique) a
+type Infer = ExceptT TypeError Identity
 
-data Binding 
-    = Type Expr
-    | Value Expr Expr
-    deriving Show
+runInfer :: Context -> Term -> Either TypeError Term
+runInfer ctx t = runExcept (whnf ctx =<< infer ctx t)
 
-type Context = Map.Map Variable Binding
+runNormalize :: Context -> Term -> Either TypeError Term
+runNormalize ctx t = runExcept (nf ctx t)
 
-runInfer :: Infer a -> Either TypeError a
-runInfer m = case evalState (runExceptT m) initUnique of
-    Left err  -> Left err
-    Right res -> Right res
+-- Wrap context lookup inside a monadic error handler
+lookup :: Context -> Index -> Infer Term
+lookup ctx i = case lookupType ctx i of
+    Just t -> return t
+    Nothing -> throwError $ IndexError i
 
-initUnique :: Unique
-initUnique = Unique { count = 0 }
+-- | Unifies two types
+unify :: Context -> Term -> Term -> Infer Term
+unify ctx e1 e2 = do
+    e1' <- whnf ctx e1
+    e2' <- whnf ctx e2
+    case (e1', e2') of
+        (Var k1, Var k2) -> 
+            if (k1 == k2) 
+            then return $ Var k1
+            else throwError $ MismatchError e1' e2'
+        (Prop, Prop) -> return Prop
+        (Prop, Universe k) -> return $ Universe k
+        (Universe k, Prop) -> return $ Universe k
+        (Universe k1, Universe k2) -> 
+            return $ Universe (max k1 k2)
+        (Pi a1, Pi a2) -> Pi <$> unifyAbstraction ctx a1 a2
+        (Lambda a1, Lambda a2) -> Lambda <$> unifyAbstraction ctx a1 a2
+        (App f1 a1, App f2 a2) -> do
+            f' <- unify ctx f1 f2 
+            a' <- unify ctx a1 a2
+            return $ App f' a'
+        (_, _) -> throwError $ MismatchError e1' e2'
+    where unifyAbstraction ctx (x1, t1, e1) (_, t2, e2) = do
+            t' <- unify ctx t1 t2 
+            e' <- unify (extendType ctx x1 t1) e1 e2
+            return (x1, t', e')
 
--- Takes a variable and generates a fresh one
-fresh :: Variable -> Infer Variable
-fresh x = case x of
-    Sym s -> return $ Sym s
-    GenSym s _ -> do
-        c <- get
-        put c { count = count c + 1 }
-        return $ GenSym s (count c + 1) 
-    Dummy -> do
-        c <- get
-        put c { count = count c + 1}
-        return $ GenSym "_" (count c + 1)
-
--- Creates a singleton substitution
-singletonSubst :: Variable -> Expr -> Subst
-singletonSubst = Map.singleton
-
--- Creates a singleton substitution
-emptySubst :: Subst
-emptySubst = Map.empty
-
--- Performs a substitution in 'e'
-subst :: Subst -> Expr -> Infer Expr
-subst s e = case e of
-    Var x -> do
-        case Map.lookup x s of
-            Just e -> return e
-            Nothing -> return $ Var x
-    Universe k -> return $ Universe k
-    Pi a -> do
-        a' <- substAbstraction s a
-        return $ Pi a'
-    Lambda a -> do
-        a' <- substAbstraction s a
-        return $ Lambda a'
-    App e1 e2 -> do
-        e1' <- subst s e1
-        e2' <- subst s e2
-        return $ App e1' e2'
-
--- Performs a substitution in an abstraction
-substAbstraction :: Subst -> Abstraction -> Infer Abstraction
-substAbstraction s (x, t, e) = do
-    x' <- fresh x 
-    t' <- subst s t
-    e' <- subst (Map.insert x (Var x') s) e
-    return (x', t', e')
-
-
--- Returns an empty context
-emptyCtx :: Context
-emptyCtx = Map.empty
-
--- Returns the type of 'x' in the Context 'ctx'
-lookupType :: Variable -> Context -> Infer Expr
-lookupType x ctx = case Map.lookup x ctx of
-    Just(Type(t)) -> return t
-    Just(Value t _) -> return t
-    Nothing -> throwError $ UnknownIdentifier x
-
--- Returns the value of 'x' in the Context 'ctx' if it is a value
-lookupValue :: Variable -> Context -> Infer (Maybe Expr)
-lookupValue x ctx = case Map.lookup x ctx of
-    Just(Type(_)) -> return Nothing
-    Just(Value _ v) -> return $ Just v
-    Nothing -> throwError $ UnknownIdentifier x
-    
-
--- Extends 'ctx' with a a variable bound to a type
-extendType :: Variable -> Expr -> Context -> Context
-extendType x t ctx = Map.insert x (Type t) ctx
-
--- Extends 'ctx' with a a variable bound to a value e of type t
-extendValue :: Variable -> Expr -> Expr -> Context -> Context
-extendValue x t e ctx = Map.insert x (Value t e) ctx
-
-infer :: Expr -> Context -> Either TypeError Expr
-infer e ctx = runInfer $ inferType e ctx
-
-inferType :: Expr -> Context -> Infer Expr
-inferType e ctx = case e of
-    -- The type of a variable can be looked up in the context
-    Var v -> lookupType v ctx
-    -- The type of Type_k is Type_{k+1}
+-- | Infers the type of a term
+infer :: Context -> Term -> Infer Term
+infer ctx t = case t of
+    Prop -> return $ Universe 1
     Universe k -> return $ Universe (k + 1)
-    -- The type of Pi_{x:T1} T2
-    Pi (x, t1, t2) -> do
-        k1 <- inferUniverse t1 ctx
-        k2 <- inferUniverse t2 (extendType x t1 ctx)
-        return $ Universe (max k1 k2)
-    Lambda (x, t, e) -> do
-        _ <- inferUniverse t ctx
-        te <- inferType e (extendType x t ctx)
-        return $ Pi (x, t, te)
-    App e1 e2 -> do
-        (x, s, t) <- inferPi e1 ctx
-        te <- inferType e2 ctx
-        eq <- equal s te ctx
-        if eq
-            then subst (singletonSubst x e2) t
-            else throwError $ EqualityError e1 e2
-       
--- Infers the universe level of a type
-inferUniverse :: Expr -> Context -> Infer Integer
-inferUniverse t ctx = do
-    u <- inferType t ctx
-    u' <- normalize u ctx
-    case u' of
-        Universe k -> return k
-        _ -> throwError TypeExpected
+    Var k -> lookup ctx k
+    Subst s e -> infer ctx (subst s e)
+    Lambda (x, a, t) -> do
+        t' <- infer (extendType ctx x a) t
+        return $ Pi (x, a, t')
+    Pi (x, a, b) -> do
+        a' <- infer ctx a
+        b' <- whnf ctx =<< infer (extendType ctx x a) b
+        case b' of
+            Universe _ -> unify ctx a' b'
+            Prop -> return Prop
+            _ -> throwError $ UniverseExpected b'
+    App f a -> do
+        f' <- whnf ctx =<< infer ctx f
+        case f' of
+            Pi (x, t, e) -> do
+                a' <- infer ctx a
+                _ <- unify ctx t a'
+                return $ Subst (Dot a idShift) e
+            t -> throwError $ PiExpected t
 
-inferPi :: Expr -> Context -> Infer Abstraction
-inferPi e ctx = do
-    t <- inferType e ctx
-    t' <- normalize t ctx
-    case t' of
-        Pi a -> return a
-        _ -> throwError FunctionExpected
+-- | Evaluates a term to weak head normal form
+whnf :: Context -> Term -> Infer Term
+whnf = norm True
 
--- Reduces down the expressions as far as they can go
-normalize :: Expr -> Context -> Infer Expr
-normalize e ctx = case e of
-    Var v -> do
-        val <- lookupValue v ctx
-        case val of
-            Nothing -> return $ Var v
-            Just val' -> normalize val' ctx
-    Universe k -> return $ Universe k
-    Pi a -> do
-        a' <- normalizeAbstraction a ctx
-        return $ Pi a'
-    Lambda a -> do
-        a' <- normalizeAbstraction a ctx
-        return $ Lambda a'
+-- | Evaluates a term to weak head normal form
+nf :: Context -> Term -> Infer Term
+nf = norm False
+
+-- | Evaluates a term to normal form
+norm :: Bool -> Context -> Term -> Infer Term
+norm weak ctx e = case e of
+    Var k -> case lookupDefinition ctx k of
+        Just e -> norm weak ctx e
+        Nothing -> return e
+    Universe _ -> return e
+    Prop -> return e
+    Pi a -> Pi <$> normAbstraction weak ctx a
+    Lambda a -> Lambda <$> normAbstraction weak ctx a
+    Subst s e -> norm weak ctx (subst s e)
     App e1 e2 -> do
-        e1' <- normalize e1 ctx
-        e2' <- normalize e2 ctx
+        e1' <- norm weak ctx e1
         case e1' of
-            Lambda (x, _, b) -> do
-                b' <- subst (singleton x e2') b
-                normalize b' ctx
-            e1' -> return $ App e1' e2'
-
-normalizeAbstraction :: Abstraction -> Context -> Infer Abstraction
-normalizeAbstraction (x, t, e) ctx = do
-    t' <- normalize t ctx
-    e' <- normalize e (extendType x t ctx)
-    return (x, t', e')
-
--- Determines if 2 expressions, when normalized, are equal up to bound variables
-equal :: Expr -> Expr -> Context -> Infer Bool
-equal e1 e2 ctx = do 
-    e1' <- normalize e1 ctx
-    e2' <- normalize e1 ctx
-    equal' e1' e2'
-    where
-        equal' (Var x1) (Var x2) = return $ x1 == x2
-        equal' (Universe k1) (Universe k2) = return $ k1 == k2
-        equal' (Pi a1) (Pi a2) = equalAbstraction a1 a2
-        equal' (Lambda a1) (Lambda a2) = equalAbstraction a1 a2
-        equal' (App e11 e12) (App e21 e22) = do
-            eq1 <- equal' e11 e21 
-            eq2 <- equal' e12 e22
-            return $ eq1 && eq2
-        equal' _ _ = return False
-        equalAbstraction (x1, t1, e1) (x2, t2, e2) = do
-            eq1 <- equal' t1 t2 
-            e2' <- subst (singletonSubst x2 (Var x1)) e2
-            eq2 <- equal' e1 e2'
-            return $ eq1 && eq2
+            Lambda(_, _, e) -> norm weak ctx (Subst (Dot e2 idShift) e)
+            Var _ -> normApp weak ctx e1' e2
+            App _ _ -> normApp weak ctx e1' e2
+            t -> throwError $ FunctionExpected t
+    where 
+        normAbstraction weak ctx (x,t,e) = 
+            if weak 
+            then return (x, t, e)
+            else do
+                t' <- norm weak ctx t
+                e' <- norm weak (extendType ctx x t) e
+                return (x, t', e')
+        normApp weak ctx e1 e2 = do
+            e2' <- if weak then return e2 else norm weak ctx e2
+            return $ App e1 e2'

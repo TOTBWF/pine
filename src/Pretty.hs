@@ -2,6 +2,7 @@ module Pretty where
 
 import Syntax
 import Infer
+import Context
 import Beautify
 
 import Text.PrettyPrint
@@ -11,36 +12,36 @@ parensIf ::  Bool -> Doc -> Doc
 parensIf True = parens
 parensIf False = id
 
-compressLambdas :: Int -> Expr -> Doc
-compressLambdas p (Lambda (x, t, e)) = parens (ppr p x <+> colon <+> ppr p t) <+> compressLambdas p e
-compressLambdas p e = text "=>" <+> ppr p e
+compressLambdas :: Int -> Context -> Term -> Doc
+compressLambdas p ctx (Lambda (x, t, e)) = parens (text x <+> typedef <+> ppr p ctx t) <+> compressLambdas p ctx e
+compressLambdas p ctx e = text "=>" <+> ppr p ctx e
+
+typedef :: Doc 
+typedef = colon <> colon
 
 class Pretty p where
-    ppr :: Int -> p -> Doc
+    ppr :: Int -> Context -> p -> Doc
 
-instance Pretty Variable where
-    ppr _ (Sym s) = text s
-    ppr _ (GenSym s i) = text $ s ++ show i
-    ppr _ (Dummy) = text "_"
+instance Pretty Term where
+    ppr p ctx (Var x) = case lookupName ctx x of
+        Just n -> text n
+        Nothing -> text "_"
+    ppr _ ctx (Universe k) = text "Type" <+> integer (toInteger k)
+    ppr _ ctx (Prop) = text "Prop"
+    ppr p ctx (Pi ("_", t1, t2)) = parensIf (p > 0) $ ppr (p + 1) ctx t1 <+> text "->" <+> ppr (p + 1) (extendName ctx "_") t2 
+    ppr p ctx (Pi (x, t1, t2)) = text "∀" <> text x <+> typedef <+> ppr p ctx t1 <> comma <+> ppr p (extendName ctx x) t2
+    ppr p ctx (Lambda a) = text "fun" <+> compressLambdas p ctx (Lambda a)
+    ppr p ctx (App e1 e2) = parensIf (p > 0) $ ppr p ctx e1 <+> ppr (p + 1) ctx e2
+    ppr p ctx (Subst (Shift k) e) = text "SUBST" <+> brackets (integer $ toInteger k) <+> ppr p ctx e
+    ppr p ctx (Subst (Dot e1 s) e2) = text "SUBST" <+> brackets (ppr p ctx e1 <> text "/") <+> ppr p ctx e2
 
-instance Pretty Expr where
-    ppr p (Var x) = ppr p x
-    ppr _ (Universe k) = text "Type" <+> integer k
-    ppr p (Pi (Dummy, t1, t2)) = parensIf (p > 0) $ ppr (p + 1) t1 <+> text "->" <+> ppr (p + 1) t2 
-    ppr p (Pi (x, t1, t2)) = text "forall" <+> ppr p x <+> colon <+> ppr p t1 <> comma <+> ppr p t2
-    ppr p (Lambda a) = text "fun" <+> compressLambdas p (Lambda a)
-    ppr p (App e1 e2) = parensIf (p > 0) $ ppr p e1 <+> ppr (p + 1) e2
+ppTerm :: Context -> Term -> String
+ppTerm ctx = render . ppr 0 ctx
 
-ppExpr :: Expr -> String
-ppExpr = render . ppr 0 . beautify
+ppBinding :: Context -> (Variable, Declaration) -> String
+ppBinding ctx (x, (Type t)) = show x ++ " : " ++ ppTerm ctx t
+ppBinding ctx (x, (Definition t v)) = show x ++ " = " ++ ppTerm ctx v ++ "\n    : " ++ ppTerm ctx t
 
-ppVariable :: Variable -> String
-ppVariable = render . ppr 0
-
-ppBinding :: (Variable, Binding) -> String
-ppBinding (x, (Type t)) = ppVariable x ++ " : " ++ ppExpr t
-ppBinding (x, (Value t v)) = ppVariable x ++ " = " ++ ppExpr v ++ "\n    : " ++ ppExpr t
-
-ppEnv :: [(Variable, Binding)] -> [String]
-ppEnv ctx = fmap ppBinding ctx
+-- ppEnv :: [(Variable, Declaration)] -> [String]
+-- ppEnv ctx = fmap ppBinding ctx
 

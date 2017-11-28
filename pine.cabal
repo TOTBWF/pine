@@ -26,6 +26,8 @@ executable pine
   other-modules:       Syntax
                        Lexer
                        Parser
+                       Desugar
+                       Context
                        Pretty
                        Infer
                        Beautify

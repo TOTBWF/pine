@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Parser (parseExpr, parseTop, Top(Parameter, Definition)) where
+module Parser (parseTerm, parseTop, Top(IParameter, IDefinition, IInductive)) where
 
 import Prelude hiding (pi)
 
@@ -18,94 +18,120 @@ import Syntax
 integer :: Parser Integer
 integer = Tok.integer lexer
 
-variable :: Parser Expr
+variable :: Parser ITerm
 variable = do
     x <- identifier
-    return $ Var (Sym x)
+    return $ IVar x
 
-universe :: Parser Expr
+universe :: Parser ITerm
 universe = do
     reserved "Type"
     k <- integer
-    return $ Universe k
+    if k > 0
+    then return $ IUniverse $ fromIntegral k
+    else fail "Undefined Universe"
 
-typeof :: Parser (Variable, Expr)
-typeof = do
+prop :: Parser ITerm
+prop = do
+    reserved "Prop"
+    return IProp
+
+typeann :: Parser ITerm
+typeann = do
+    reservedOp "::"
+    t <- term
+    return t
+
+typedef :: Parser (Variable, ITerm)
+typedef = do
     x <- identifier
-    reservedOp ":"
-    t <- expr
-    return (Sym x, t)
+    t <- typeann
+    return (x, t)
 
-lambda :: Parser Expr
+lambda :: Parser ITerm
 lambda = do
     reserved "fun"
-    ts <- many $ parens typeof
+    ts <- many $ parens typedef
     reservedOp "=>"
-    e <- expr
-    return $ foldr (\(x, t) e' -> Lambda(x, t, e')) e ts
+    e <- term
+    return $ foldr (\(x, t) e' -> ILambda(x, t, e')) e ts
 
-forall :: Parser Expr
+forall :: Parser ITerm
 forall = do
     reserved "forall"
     x <- identifier
-    reservedOp ":"
-    t <- expr
+    reservedOp "::"
+    t <- term
     _ <- comma
-    e <- expr
-    return $ Pi (Sym x, t, e)
+    e <- term
+    return $ IPi (x, t, e)
 
-aexp :: Parser Expr
+aexp :: Parser ITerm
 aexp = 
-        parens expr
+        parens term
     <|> lambda
+    <|> prop
     <|> universe
     <|> forall
     <|> variable
 
 
-term :: Parser Expr
-term = aexp >>= \x ->
-                (many1 aexp >>= \xs -> return $ foldl App x xs)
+t :: Parser ITerm
+t = aexp >>= \x ->
+                (many1 aexp >>= \xs -> return $ foldl IApp x xs)
                 <|> return x
 
 infixOp :: String -> (a -> a -> a) -> Ex.Assoc -> Op a
 infixOp x f = Ex.Infix (reservedOp x >> return f)
 
-table :: Operators Expr
+table :: Operators ITerm
 table = [
         [
-            infixOp "->" (\t1 t2 -> Pi (Dummy, t1, t2)) Ex.AssocLeft
+            infixOp "->" (\t1 t2 -> IPi ("_", t1, t2)) Ex.AssocRight
         ]
     ]
 
-expr :: Parser Expr
-expr = Ex.buildExpressionParser table term
+term :: Parser ITerm
+term = Ex.buildExpressionParser table t
 
 data Top 
-    = Parameter Variable Expr
-    | Definition Variable Expr 
+    = IParameter Variable ITerm
+    | IDefinition Variable ITerm --ITerm 
+    | IInductive Variable ITerm [(Variable, ITerm)]
 
 parameter :: Parser Top
 parameter = do
-    x <- identifier
-    reservedOp ":"
-    t <- expr
-    return $ Parameter (Sym x) t
+    (x, t) <- typedef
+    return $ IParameter x t
 
 definition :: Parser Top
 definition = do
+    reserved "let"
     x <- identifier
+    -- args <- many $ parens typedef
+    -- t <- typeann
     reservedOp ":="
-    t <- expr
-    return $ Definition (Sym x) t
+    e <- term
+    return $ IDefinition x e --e
+
+inductive :: Parser Top
+inductive = do
+    reserved "inductive"
+    n <- identifier
+    args <- many $ parens typedef
+    t <- typeann
+    reservedOp ":="
+    c <- typedef `sepBy1` reservedOp "|" 
+    return $ IInductive n (foldr (\(x, t) p -> IPi (x, t, p)) t args) c
 
 top :: Parser Top
 top =
         try parameter
     <|> definition
+    <|> inductive
 
-parseExpr :: L.Text -> Either ParseError Expr
-parseExpr s = parse expr "<stdint>" s
+parseTerm :: L.Text -> Either ParseError ITerm
+parseTerm s = parse term "<stdint>" s
 
 parseTop :: L.Text -> Either ParseError Top
 parseTop s = parse top "<stdint>" s
