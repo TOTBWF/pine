@@ -5,18 +5,9 @@ proof assistant.
 # Samples
 Addition of Natural Numbers 
 ```
-λπ> N : Type 0 
-λπ> s : N -> N
-λπ> z : N
-λπ> numeral := forall A : Type 0, (A -> A) -> (A -> A)
-λπ> zero := fun (A : Type 0) (f: A -> A) (x: A) => x
-λπ> one := fun (A : Type 0) (f: A -> A) (x: A) => f x
-λπ> two := fun (A : Type 0) (f : A -> A) (x: A) => f (f x)
-λπ> three := fun (A : Type 0) (f : A -> A) (x: A) => f (f (f x))
-λπ> plus := fun (m : numeral) (n : numeral) (A : Type 0) (f : A -> A) (x : A) => m A f (n A f x)
-λπ> :eval plus two N s z
-    = s (s (s (s (s z))))
-    : N
+inductive Nat :: Type 1 := Z :: Nat | S :: Nat -> Nat
+natRec :: forall (m :: Nat -> Type 1), m Z -> (forall (l :: Nat), m l -> m (S l)) -> (forall (k :: Nat), m k)
+let plus := natRec (fun (n :: Nat) => Nat -> Nat) (fun (n :: Nat) => n) (fun (k :: Nat) (rec :: Nat -> Nat) (n :: Nat) => S (rec n)) 
 ```
 
 
