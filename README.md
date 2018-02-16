@@ -22,6 +22,15 @@ natRec :: forall (m :: Nat -> Type 1), m Z -> (forall (l :: Nat), m l -> m (S l)
 let plus := natRec (fun (n :: Nat) => Nat -> Nat) (fun (n :: Nat) => n) (fun (k :: Nat) (rec :: Nat -> Nat) (n :: Nat) => S (rec n)) 
 ```
 
+Length-Indexed vectors
+```
+inductive Vect (a :: Type 1) (n :: Nat) :: Type 1 := vnil :: forall a :: Type 1, Vect a z | vcons :: forall a :: Type 1, forall k :: Nat, a -> Vect a k -> Vect a (s k)
+```
+
+Dependent Pairs
+```
+inductive DPair (a :: Type 1) (p :: a -> Type 1) := mkPair :: forall a :: Type 1, forall p :: (a -> Type 1), forall x :: a, forall pf :: p x, DPair a p
+```
 
 # Building
 ```
