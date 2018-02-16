@@ -1,35 +1,49 @@
-name:                pine
-version:             0.1.0.0
--- synopsis:
--- description:
-homepage:            https://github.com/TOTBWF/sigma-lang#readme
-license:             BSD3
-license-file:        LICENSE
-author:              Reed Mullanix
-maintainer:          reedmullanix@gmail.com
-copyright:           2017 Reed Mullanix
-build-type:          Simple
-extra-source-files:  README.md
-cabal-version:       >=1.10
+-- This file has been generated from package.yaml by hpack version 0.21.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: bded2acd0a9e1192b85ef2728e2701cae5b6b2b4a5ad7341238f4797ed73d297
+
+name:           pine
+version:        0.1.0.0
+homepage:       https://github.com/totbwf/pine#readme
+bug-reports:    https://github.com/totbwf/pine/issues
+author:         Reed Mullanix
+maintainer:     reedmullanix@gmail.com
+copyright:      2018 Reed Mullanix
+license:        MIT
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.10
+
+extra-source-files:
+    README.md
+
+source-repository head
+  type: git
+  location: https://github.com/totbwf/pine
 
 executable pine
-  hs-source-dirs:      src
-  main-is:             Main.hs
-  build-depends:       base 
-                     , parsec
-                     , text
-                     , mtl
-                     , pretty
-                     , repline
-                     , containers
-  default-language:    Haskell2010
-  other-modules:       Syntax
-                       Lexer
-                       Parser
-                       Desugar
-                       Context
-                       Pretty
-                       Infer
-                       Beautify
-
-
+  main-is: Main.hs
+  other-modules:
+      Beautify
+      Context
+      Desugar
+      Infer
+      Lexer
+      Parser
+      Pretty
+      Syntax
+      Paths_pine
+  hs-source-dirs:
+      src
+  default-extensions: TupleSections OverloadedStrings
+  build-depends:
+      base >=4.7 && <5
+    , containers >=0.5 && <0.6
+    , megaparsec >=6 && <7
+    , mtl >=2 && <3
+    , pretty >=1.1 && <1.2
+    , repline >=0.1 && <0.2
+    , text >=1 && <2
+  default-language: Haskell2010
