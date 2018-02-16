@@ -1,6 +1,8 @@
 module Syntax where
 
-type Variable = String
+import Data.Text (Text)
+
+type Variable = Text
 type Index = Int
 
 type Abstraction = (Variable, Term, Term)-- We Retain variable names for the purpose of pretty-printing
@@ -13,17 +15,6 @@ data Term
     | App Term Term
     | Lambda Abstraction
     | Pi Abstraction
-    deriving Show
-
-type IAbstraction = (Variable, ITerm, ITerm)-- We Retain variable names for the purpose of pretty-printing
-
-data ITerm
-    = IVar Variable 
-    | IProp
-    | IUniverse Int 
-    | IApp ITerm ITerm
-    | ILambda IAbstraction
-    | IPi IAbstraction
     deriving Show
 
 data Substitution

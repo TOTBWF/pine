@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -8,15 +7,16 @@ module Main where
 
 import Parser
 import Syntax
+import AbsSyntax
 import Infer
 import Context
 import Pretty
-import Desugar
 
 import Control.Monad.Trans
 import Control.Monad
-import qualified Data.Text.Lazy as L
-import qualified Data.Text.Lazy.IO as L
+import qualified Data.Text as T
+import Data.Text (Text)
+import qualified Data.Text.IO as T
 import qualified Data.Map as Map
 import Control.Monad.State.Strict
 import Control.Monad.Except
@@ -39,26 +39,26 @@ hoistErr (Left err) = do
   liftIO $ print err
   abort
 
-exec :: L.Text -> Repl ()
+exec :: Text -> Repl ()
 exec line = do
     ctx <- get
     let res = parseTop line
     case res of
-        Left err -> liftIO $ print err
+        Left err -> liftIO $ putStrLn err
         Right tp -> case tp of
-            IParameter x i -> do
+            AbsParameter x i -> do
                 -- _ <- hoistErr $ runInfer $ inferUniverse t (rctx ctx)
                 t <- hoistErr $ desugar ctx i
                 let ctx' = extendType (ctx) x t
                 put ctx'
                 return ()
-            IDefinition x i -> do
+            AbsDefinition x i -> do
                 e <- hoistErr $ desugar ctx i
                 t <- hoistErr $ runInfer ctx e 
                 let ctx' = extendDefinition ctx x t e 
                 put ctx'
                 return ()
-            IInductive x i c -> do
+            AbsInductive x i c -> do
                 e <- hoistErr $ desugar ctx i
                 let ctx' = extendType ctx x e
                 ctx'' <- foldM (\ctx (x', i') -> do 
@@ -94,7 +94,7 @@ context _ = do
 typeof :: [String] -> Repl ()
 typeof args = do
     ctx <- get 
-    i <- hoistErr $ parseTerm $ L.pack $ unwords args
+    i <- hoistErr $ parseTerm $ T.pack $ unwords args
     term <- hoistErr $ desugar ctx i
     t <- hoistErr $ runNormalize ctx =<< runInfer ctx term
     liftIO $ putStrLn $ ppTerm ctx t
@@ -102,7 +102,7 @@ typeof args = do
 debug :: [String] -> Repl ()
 debug args = do
     ctx <- get 
-    i <- hoistErr $ parseTerm $ L.pack $ unwords args
+    i <- hoistErr $ parseTerm $ T.pack $ unwords args
     liftIO $ putStrLn $ "Input: " ++ show i
     term <- hoistErr $ desugar ctx i
     liftIO $ putStrLn $ "Desugared: " ++ show term
@@ -114,7 +114,7 @@ debug args = do
 eval :: [String] -> Repl ()
 eval args = do
     ctx <- get
-    i <- hoistErr $ parseTerm $ L.pack $ unwords args
+    i <- hoistErr $ parseTerm $ T.pack $ unwords args
     term <- hoistErr $ desugar ctx i
     t <- hoistErr $ runInfer ctx term
     e <- hoistErr $ runNormalize ctx term
@@ -122,8 +122,8 @@ eval args = do
 
 load :: [String] -> Repl ()
 load args = do
-    contents <- liftIO $ L.readFile (unwords args)
-    mapM_ exec $ L.lines contents
+    contents <- liftIO $ T.readFile (unwords args)
+    mapM_ exec $ T.lines contents
     return ()
 
 dump :: [String] -> Repl ()
@@ -132,8 +132,8 @@ dump args = do
     let defs = reverse $ zip (names ctx) (decls ctx)  
     let path = head args
     liftIO $ writeFile path $ unlines $ fmap (writeDecl ctx) defs
-    where writeDecl ctx (x, (Type t)) = x ++ " : " ++ ppTerm ctx t
-          writeDecl ctx (x, (Definition _ e)) = x ++ " := " ++ ppTerm ctx e
+    where writeDecl ctx (x, (Type t)) = (T.unpack x) ++ " : " ++ ppTerm ctx t
+          writeDecl ctx (x, (Definition _ e)) = (T.unpack x) ++ " := " ++ ppTerm ctx e
 
 cmd :: [(String, [String] -> Repl ())]
 cmd = [
@@ -156,9 +156,9 @@ defaultMatcher = [
 
 comp :: (Monad m, MonadState Context m) => WordCompleter m
 comp n = do
-    let cmds = [":quit", ":help", ":context", ":type", ":eval", ":load", ":dump", "Type", "Prop", "fun", "forall"]
+    let cmds = ((':':) . fst)<$> cmd
     defs <- gets names
-    return $ filter (isPrefixOf n) (cmds ++ defs)
+    return $ filter (isPrefixOf n) (cmds ++ (T.unpack <$> defs))
 
 completer :: CompleterStyle (StateT Context IO)
 completer = Prefix (wordCompleter comp) defaultMatcher
@@ -166,4 +166,4 @@ completer = Prefix (wordCompleter comp) defaultMatcher
 main :: IO ()
 main = 
     flip evalStateT emptyCtx
-    $ evalRepl "λπ> " (exec . L.pack) cmd completer (return ())
+    $ evalRepl "λπ> " (exec . T.pack) cmd completer (return ())

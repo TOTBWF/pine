@@ -3,14 +3,15 @@ module Beautify (refresh) where
 import Data.Map as Map
 import Data.Char
 import Text.Read
+import Data.Text as T
 
 import Syntax
 
 -- Splits a string into a base and a numerical postfix
-splitStr :: String -> (String, Integer)
+splitStr :: Text -> (Text, Integer)
 splitStr s = 
-    let (b, p) = span isAlpha s
-    in case readMaybe p of
+    let (b, p) = T.span isAlpha s
+    in case readMaybe $ T.unpack p of
         Just p' -> (b, p')
         Nothing -> (s, 0)
 
@@ -21,9 +22,9 @@ refresh ctx x =
         else findAvailible' $ splitStr x
     where
           findAvailible' (b, p) = 
-            if elem (x ++ show p) ctx
+            if elem (x `T.append` (T.pack $ show p)) ctx
                 then findAvailible' (b, p + 1)
-                else (x ++ show p)
+                else (x `T.append` (T.pack $ show p))
 
 
             

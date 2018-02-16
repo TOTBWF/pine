@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bded2acd0a9e1192b85ef2728e2701cae5b6b2b4a5ad7341238f4797ed73d297
+-- hash: c152177dfb95f85bfdd2a5b554d05635739f76df1a4eb94fd2cfb8bb1ec9d3a6
 
 name:           pine
 version:        0.1.0.0
@@ -26,9 +26,9 @@ source-repository head
 executable pine
   main-is: Main.hs
   other-modules:
+      AbsSyntax
       Beautify
       Context
-      Desugar
       Infer
       Lexer
       Parser
