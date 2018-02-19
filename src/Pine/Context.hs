@@ -1,8 +1,8 @@
-module Context where
+module Pine.Context where
 
 import Prelude hiding ((!!))
 
-import Syntax
+import Pine.Syntax
 
 data Declaration
     = Type Term 

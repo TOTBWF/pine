@@ -1,11 +1,11 @@
-module Beautify (refresh) where
+module Pine.Beautify (refresh) where
 
 import Data.Map as Map
 import Data.Char
 import Text.Read
 import Data.Text as T
 
-import Syntax
+import Pine.Syntax
 
 -- Splits a string into a base and a numerical postfix
 splitStr :: Text -> (Text, Integer)

@@ -1,6 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
-
-module Parser 
+module Pine.Parser.Parser 
     ( Top(..)
     , parseTerm
     , parseTop
@@ -15,8 +13,9 @@ import qualified Text.Megaparsec.Expr as P
 import Data.Text (Text)
 import Data.List (foldl')
 
-import Lexer
-import AbsSyntax
+import Pine.Parser.Stack
+import Pine.Parser.Lexer
+import Pine.AbsSyntax
 
 typeann :: Parser AbsTerm
 typeann = doubleColon *> term

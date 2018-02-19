@@ -29,7 +29,7 @@ dependencies:
 
 executables:
   pine:
-    main:                Main.hs
+    main:                Pine/Main.hs
     source-dirs:         src
     default-extensions:
     - TupleSections

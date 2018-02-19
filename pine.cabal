@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c152177dfb95f85bfdd2a5b554d05635739f76df1a4eb94fd2cfb8bb1ec9d3a6
+-- hash: fcc9894cb425d5002767f2086451305847f33f7d8723858cc2311e33b53b11af
 
 name:           pine
 version:        0.1.0.0
@@ -24,16 +24,17 @@ source-repository head
   location: https://github.com/totbwf/pine
 
 executable pine
-  main-is: Main.hs
+  main-is: Pine/Main.hs
   other-modules:
-      AbsSyntax
-      Beautify
-      Context
-      Infer
-      Lexer
-      Parser
-      Pretty
-      Syntax
+      Pine.AbsSyntax
+      Pine.Beautify
+      Pine.Context
+      Pine.Infer
+      Pine.Parser.Lexer
+      Pine.Parser.Parser
+      Pine.Parser.Stack
+      Pine.Pretty
+      Pine.Syntax
       Paths_pine
   hs-source-dirs:
       src

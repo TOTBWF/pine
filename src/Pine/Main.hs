@@ -5,12 +5,12 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Main where
 
-import Parser
-import Syntax
-import AbsSyntax
-import Infer
-import Context
-import Pretty
+import Pine.Parser.Parser
+import Pine.Syntax
+import Pine.AbsSyntax
+import Pine.Infer
+import Pine.Context
+import Pine.Pretty
 
 import Control.Monad.Trans
 import Control.Monad

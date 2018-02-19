@@ -1,5 +1,5 @@
 
-module Lexer
+module Pine.Parser.Lexer
     ( symbol
     , parens
     , comma
@@ -16,7 +16,6 @@ module Lexer
     )
 where
     
-import Data.Void (Void)
 import Data.Functor (void)
 import Control.Applicative ((<|>))
 import qualified Text.Megaparsec as P
@@ -25,7 +24,7 @@ import qualified Text.Megaparsec.Char.Lexer as L
 import qualified Data.Text as T
 import Data.Text (Text)
 
-type Parser = P.Parsec Void Text
+import Pine.Parser.Stack
 
 lineCmt :: Parser ()
 lineCmt = L.skipLineComment "--"

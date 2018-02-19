@@ -1,4 +1,4 @@
-module Syntax where
+module Pine.Syntax where
 
 import Data.Text (Text)
 

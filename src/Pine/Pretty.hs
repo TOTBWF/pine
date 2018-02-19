@@ -1,9 +1,9 @@
-module Pretty where
+module Pine.Pretty where
 
-import Syntax
-import Infer
-import Context
-import Beautify
+import Pine.Syntax
+import Pine.Infer
+import Pine.Context
+import Pine.Beautify
 
 import Text.PrettyPrint
 import qualified Data.Text as T

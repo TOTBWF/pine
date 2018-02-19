@@ -1,4 +1,4 @@
-module AbsSyntax
+module Pine.AbsSyntax
     ( AbsTerm (..)
     , Variable
     , desugar
@@ -6,8 +6,8 @@ module AbsSyntax
 where
 
 import Data.Text (Text)
-import Syntax
-import Context
+import Pine.Syntax
+import Pine.Context
 import Data.List 
 
 data AbsTerm

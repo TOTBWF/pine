@@ -1,11 +1,11 @@
-module Infer where
+module Pine.Infer where
 
 import Prelude hiding (lookup)
 import Control.Monad.Except
 import Control.Monad.Identity
 
-import Syntax
-import Context
+import Pine.Syntax
+import Pine.Context
 
 data TypeError 
     = IndexError Index
